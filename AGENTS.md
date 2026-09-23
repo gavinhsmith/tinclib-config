@@ -13,6 +13,84 @@ library's point of view) **plus its own admin-only commands** that are not
 exposed through `tinclib.h` at all. Consumes `tinclib-protocol` as a
 pinned dependency for the admin message definitions.
 
+## Project status
+
+Update this section when something lands or the release state changes.
+**As of 2026-09-23** (`main` after PR #3). No tags or releases yet.
+
+**Dependencies** (git submodules under `lib/`):
+
+| Submodule | Pin |
+|---|---|
+| `tinclib` | `phase-1` @ `28c2a3a` (its v0.1.0 PR isn't merged or tagged yet; switch to the tag once it exists) |
+| `tinclib-protocol` | v0.1.0 |
+| `titrmlib` | v0.2.0 |
+
+tinclib has its own nested copy of the protocol at
+`lib/tinclib/external/tinclib-protocol`. It isn't checked out or built here,
+and CI fails if its pin differs from `lib/tinclib-protocol`. Bump both
+together.
+
+**Working:**
+- Talks to the board through tinclib:
+  - status screen (Wi-Fi state, connected slot, RSSI, IP)
+  - the 3 saved slots, with set (SSID + password) and forget
+  - connection test: Wi-Fi, then one HTTP GET to `http://example.com/`
+- Handoff: TINCHND is parsed, and the result is written back with the
+  nonce echo. The layout is checked against tinclib's real code in
+  `tests/test_interop.c`.
+
+**Blocked or missing** (flag, don't work around):
+- **Handoff return crashes** when TINCLIBC is bigger than the calling app;
+  see the handoff rules below. `tests/handoff` (CEmu) is red in CI until
+  this is fixed in CEdev's `os_RunPrgm` or in tinclib. That's expected: the
+  user chose to leave it failing visibly.
+- **Protocol 0.1 has only WIFI_LIST/SET/FORGET as admin commands.** Scan,
+  the hidden flag, connect-now, the insecure-TLS toggle
+  (`ERR_INSECURE_DISABLED` doesn't exist yet either), CA bundle updates,
+  firmware info, HTTPS and time sync all need `tinclib-protocol` (and the
+  firmware) first. The UI shows these as "not in protocol 0.1".
+- **RSSI only for the connected slot:** STATUS carries RSSI for the current
+  connection only, so other saved slots can't show signal strength until
+  scan exists.
+- **No captive-portal provisioning** in the firmware yet, so keypad entry
+  is the only path.
+- **Keypad symbols:** titrmlib can only type `. : - ? + " * / , ( ) ^` and
+  space (and letters only in upper case, which is why TINCLIBC has its own
+  field widget with a `[mode]` case toggle). Some Wi-Fi passwords can't be
+  entered yet.
+
+## Repo layout
+
+| Path | What |
+|---|---|
+| `src/main.c` | titrmlib UI, event handling, reading and writing TINCHND |
+| `src/admin.c/.h` | STATUS and admin commands over tinclib's internal `tinc_xfer()`; wipes the password buffer after sending |
+| `src/handoff.c/.h` | Pure C99 TINCHND parse/write, mirroring tinclib's layout; no CE headers, so the host tests build it |
+| `tests/test_*.c`, `tests/Makefile` | Host tests: handoff, admin payloads (link stubbed), and interop with tinclib's real handoff code on tinclib's host stubs |
+| `autotest.json` | CEmu test: main screen with no board, `[clear]` exits |
+| `tests/handoff/` | CEmu test: THANDOFF (a tinclib app) → TINCLIBC → back. Built from the repo root with `make handoff` |
+| `tests/autotest.py` | Runs CEmu tests. Launches through AsmHook2 on arTIfiCE ROMs (reusing titrmlib's `tests/hw/run.py`) and renders failing screens to `tests/build/*/*.png` |
+
+## Build, test, CI
+
+- `make`, then `make handoff` (CEdev v15.0). `make -C tests` runs the host
+  tests (`SANITIZE=` on MinGW, which can't link ASan).
+- Emulator: `AUTOTESTER_ROM=… python tests/autotest.py autotest.json
+  tests/handoff/autotest.json`. After a UI change, open the PNG before
+  recording a new CRC: a CRC alone once "recorded" an OS error screen.
+- CI (`.github/workflows/ci.yml`) runs the protocol-pin check and the host
+  tests (ASan + UBSan), then builds and runs the emulator tests. The ROM
+  (~4 MB, too big for a secret) is `ti-84ce.rom` in the private repo
+  `gavinhsmith/ce-rom`, fetched with the `CE_ROM_TOKEN` secret (a read-only
+  PAT). That ROM is OS 5.8.5, arTIfiCE-jailbroken, with clibs installed.
+  Pushing a `v*` tag publishes a release with `TINCLIBC.8xp`.
+- CEdev on Windows can't build sources reached through `..`. Any extra
+  CEdev program builds from the repo root with its own `.mk` (see
+  `tests/handoff/handoff.mk`); don't copy sources around.
+- Commits and PRs are authored by the user only, with no AI co-author
+  trailers.
+
 ## What TINCLIBC owns vs. what apps own — do not blur this line
 
 **TINCLIBC owns (admin commands, `0x40+` in the protocol):**
@@ -82,6 +160,16 @@ Rules:
   program is bigger than the calling app. TINCLIBC (~38 KB) is bigger than
   most apps. It's in CEdev's `os_RunPrgm` return path or the OS, underneath
   tinclib's handoff design: fix it there, not with a workaround here.
+  - **Measured:** with a 5.4 KB caller, a 2.7 KB stand-in TINCLIBC returns
+    and one of 5.7 KB or more crashes.
+  - **Confirmed:** padding the caller to 55 KB makes the real TINCLIBC
+    round-trip correctly.
+  - **Ruled out:** graphx, keypad scanning, run time, static data size and
+    cursor-image RAM. `sprintf` only looked guilty because it made the
+    stand-in bigger.
+- Result TINCLIBC sends: `FAILED` (with the tinclib error code as detail)
+  if there's no board; otherwise `OK` if Wi-Fi is connected (for
+  `TEST_CONN`, if the connection test passed); otherwise `CANCELLED`.
 - `TEST_CONN` should exercise Wi-Fi + time-sync + one real HTTPS request,
   since "connected" and "can actually complete an HTTPS request" are
   different questions on this hardware (see TLS constraints below) — a
@@ -110,8 +198,9 @@ Rules:
 
 - Off by default. This is the **only** place in the whole system where it
   can be turned on — no per-app or per-request-only override exists
-  (enforced protocol-side via `ERR_INSECURE_DISABLED`; see
-  `tinclib-protocol`). Do not add any other path to enable it.
+  (to be enforced protocol-side via `ERR_INSECURE_DISABLED`, which
+  `tinclib-protocol` v0.1.0 doesn't define yet; nor is there a toggle
+  command). Do not add any other path to enable it.
 - The UI here should make clear this is a global, security-relevant
   setting, not a per-connection convenience flag.
 
