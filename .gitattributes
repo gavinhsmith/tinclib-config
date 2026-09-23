@@ -1,0 +1,10 @@
+# LF everywhere, in the repo and in checkouts (overrides core.autocrlf).
+* text=auto eol=lf
+
+# Binary: never convert.
+*.png binary
+*.8xp binary
+*.8xv binary
+*.8xg binary
+*.rom binary
+*.bin binary
