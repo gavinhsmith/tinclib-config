@@ -21,7 +21,7 @@
       "start": "vram_start",
       "size": "vram_8_size",
       "expected_CRCs": [
-        "CCCA1552"
+        "51D26692"
       ]
     },
     "2": {

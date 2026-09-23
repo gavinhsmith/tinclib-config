@@ -21,15 +21,19 @@ typedef struct {
     bool wifi_locked;    /* the board refuses WIFI_SET/FORGET (ERR_LOCKED) */
 } admin_status_t;
 
-typedef struct {
-    char ssid[TINC_WIFI_SLOTS][TINC_SSID_MAX + 1]; /* "" = empty slot */
-    uint8_t wflags[TINC_WIFI_SLOTS];               /* TINC_WF_* */
-} admin_slots_t;
-
 tinc_err_t admin_status(admin_status_t *st);
-tinc_err_t admin_list(admin_slots_t *slots);
+
+/* How many Wi-Fi slots the board has (1..TINC_WIFI_SLOTS_MAX), from its
+ * HELLO reply. tinclib doesn't keep that reply, so this sends HELLO again;
+ * HELLO is idempotent and always executed. */
+tinc_err_t admin_slot_count(uint8_t *count);
+
+/* One slot: ssid ("" = empty, needs TINC_SSID_MAX + 1 bytes) and wflags. */
+tinc_err_t admin_get(uint8_t slot, char *ssid, uint8_t *wflags);
+
 /* ssid 1..TINC_SSID_MAX chars, pass 0..TINC_PASS_MAX (0 = open network),
- * wflags TINC_WF_*. TINC_ERR_LOCKED while the board has Wi-Fi locked. */
+ * wflags TINC_WF_*. TINC_ERR_LOCKED while the board has Wi-Fi locked;
+ * TINC_ERR_BAD_ARG from the board for a slot it doesn't have. */
 tinc_err_t admin_set(uint8_t slot, const char *ssid, const char *pass, uint8_t wflags);
 tinc_err_t admin_forget(uint8_t slot);
 

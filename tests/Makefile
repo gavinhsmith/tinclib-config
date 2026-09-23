@@ -31,9 +31,9 @@ $(BUILD)/test_admin: test_admin.c ../src/admin.c ../src/admin.h
 	$(CC) -I$(TINC)/src $(CPPFLAGS) $(CFLAGS) $(SANITIZE) -o $@ test_admin.c ../src/admin.c
 
 # tinclib's stubs rename clock() so time only moves when the library looks.
-INTEROP_SRC := test_interop.c ../src/handoff.c $(TINC)/tests/stubs/stubs.c \
+INTEROP_SRC := test_interop.c ../src/handoff.c ../src/admin.c $(TINC)/tests/stubs/stubs.c \
 	$(wildcard $(TINC)/src/*.c) $(PROTO)/crc16.c $(PROTO)/tinc_frame.c
-$(BUILD)/test_interop: $(INTEROP_SRC) ../src/handoff.h
+$(BUILD)/test_interop: $(INTEROP_SRC) ../src/handoff.h ../src/admin.h
 	@mkdir -p $(BUILD)
 	$(CC) -I$(TINC)/tests/stubs -I$(TINC)/src $(CPPFLAGS) -Dclock=tinc_fake_clock \
 		$(CFLAGS) $(SANITIZE) -o $@ $(INTEROP_SRC)

@@ -41,7 +41,6 @@ static void set_reply(const void *p, uint16_t len, tinc_err_t err)
 int main(void)
 {
     admin_status_t st;
-    admin_slots_t sl;
     char longpass[TINC_PASS_MAX + 2];
 
     /* STATUS, with the 0.2 flags byte */
@@ -64,25 +63,57 @@ int main(void)
         assert(admin_status(&st) == TINC_ERR_NO_REPLY);
     }
 
-    /* WIFI_LIST: 3 SSIDs, then 3 wflags */
+    /* HELLO: slot count, and the HELLO we send matches tinclib's */
     {
-        static const uint8_t r[] = { 4, 'h', 'o', 'm', 'e', 0, 2, 'o', 'k',
-                                     0, 0, TINC_WF_HIDDEN, 0x99 };
-        static const uint8_t bad[] = { 4, 'h', 'o', 'm', 'e', 0, 9, 'x' };
+        uint8_t r[TINC_HELLO_RESP_LEN + 1] = { TINC_PROTO_MAJOR, TINC_PROTO_MINOR };
+        uint8_t n = 0;
+        r[TINC_HELLO_WIFI_SLOTS] = 7;
+        set_reply(r, sizeof r, TINC_OK); /* one trailing byte: ignored */
+        assert(admin_slot_count(&n) == TINC_OK && n == 7);
+        assert(sent_type == TINC_T_HELLO && sent_len == TINC_HELLO_REQ_LEN);
+        assert(sent[TINC_HELLO_MAJOR] == TINC_PROTO_MAJOR &&
+               sent[TINC_HELLO_MINOR] == TINC_PROTO_MINOR);
+        assert(tinc_get_u16(sent + TINC_HELLO_MAX_PAYLOAD) == TINC_RX_BUF_SIZE);
+        r[TINC_HELLO_WIFI_SLOTS] = TINC_WIFI_SLOTS_MAX;
+        assert(admin_slot_count(&n) == TINC_OK && n == TINC_WIFI_SLOTS_MAX);
+        n = 9;
+        r[TINC_HELLO_WIFI_SLOTS] = 0;                /* out of range */
+        assert(admin_slot_count(&n) == TINC_ERR_BAD_LEN && n == 9);
+        r[TINC_HELLO_WIFI_SLOTS] = 0xFF;
+        assert(admin_slot_count(&n) == TINC_ERR_BAD_LEN);
+        set_reply(r, TINC_HELLO_RESP_LEN - 1, TINC_OK); /* a 0.2-sized reply */
+        assert(admin_slot_count(&n) == TINC_ERR_BAD_LEN);
+        set_reply(NULL, 0, TINC_ERR_VERSION);
+        assert(admin_slot_count(&n) == TINC_ERR_VERSION);
+    }
+
+    /* WIFI_GET: one slot per request */
+    {
+        static const uint8_t home[] = { 4, 'h', 'o', 'm', 'e', 0, 0x99 };
+        static const uint8_t hidden[] = { 2, 'o', 'k', TINC_WF_HIDDEN };
+        static const uint8_t empty[] = { 0, 0 };
+        static const uint8_t no_flags[] = { 2, 'o', 'k' };
         static const uint8_t big[] = { TINC_SSID_MAX + 1 };
-        set_reply(r, sizeof r, TINC_OK);
-        assert(admin_list(&sl) == TINC_OK && sent_type == TINC_T_WIFI_LIST);
-        assert(!strcmp(sl.ssid[0], "home") && !strcmp(sl.ssid[1], "") &&
-               !strcmp(sl.ssid[2], "ok"));
-        assert(sl.wflags[0] == 0 && sl.wflags[2] == TINC_WF_HIDDEN);
-        set_reply(r, sizeof r - 2, TINC_OK); /* wflags cut short */
-        assert(admin_list(&sl) == TINC_ERR_BAD_LEN && !sl.ssid[0][0]);
-        set_reply(bad, sizeof bad, TINC_OK);
-        assert(admin_list(&sl) == TINC_ERR_BAD_LEN && !sl.ssid[0][0]);
+        char ssid[TINC_SSID_MAX + 1];
+        uint8_t wf = 0xAA;
+
+        set_reply(home, sizeof home, TINC_OK); /* trailing byte ignored */
+        assert(admin_get(4, ssid, &wf) == TINC_OK && sent_type == TINC_T_WIFI_GET);
+        assert(sent_len == 1 && sent[TINC_WGET_SLOT] == 4);
+        assert(!strcmp(ssid, "home") && wf == 0);
+        set_reply(hidden, sizeof hidden, TINC_OK);
+        assert(admin_get(0, ssid, &wf) == TINC_OK && !strcmp(ssid, "ok") &&
+               wf == TINC_WF_HIDDEN);
+        set_reply(empty, sizeof empty, TINC_OK);
+        assert(admin_get(0, ssid, &wf) == TINC_OK && !ssid[0] && wf == 0);
+        set_reply(no_flags, sizeof no_flags, TINC_OK); /* wflags missing */
+        assert(admin_get(0, ssid, &wf) == TINC_ERR_BAD_LEN && !ssid[0]);
         set_reply(big, sizeof big, TINC_OK);
-        assert(admin_list(&sl) == TINC_ERR_BAD_LEN);
-        set_reply(r, 3, TINC_OK);
-        assert(admin_list(&sl) == TINC_ERR_BAD_LEN);
+        assert(admin_get(0, ssid, &wf) == TINC_ERR_BAD_LEN && !ssid[0]);
+        set_reply(NULL, 0, TINC_OK);
+        assert(admin_get(0, ssid, &wf) == TINC_ERR_BAD_LEN);
+        set_reply(NULL, 0, TINC_ERR_BAD_ARG); /* slot past the board's count */
+        assert(admin_get(200, ssid, &wf) == TINC_ERR_BAD_ARG && !ssid[0]);
     }
 
     /* WIFI_SET: exact payload, wflags last */
@@ -103,7 +134,8 @@ int main(void)
         longpass[TINC_PASS_MAX] = '\0';
         assert(admin_set(0, "n", longpass, TINC_WF_HIDDEN) == TINC_OK);
         assert(sent[sent_len - 1] == TINC_WF_HIDDEN);
-        assert(admin_set(3, "n", "", 0) == TINC_ERR_BAD_ARG);
+        assert(admin_set(TINC_WIFI_SLOTS_MAX, "n", "", 0) == TINC_ERR_BAD_ARG);
+        assert(admin_set(200, "n", "", 0) == TINC_OK); /* range is the board's call */
         assert(admin_set(0, "", "", 0) == TINC_ERR_BAD_ARG);
         assert(admin_set(0, "012345678901234567890123456789012", "", 0) == TINC_ERR_BAD_ARG);
         set_reply(NULL, 0, TINC_ERR_LOCKED);
@@ -114,7 +146,7 @@ int main(void)
     set_reply(NULL, 0, TINC_OK);
     assert(admin_forget(1) == TINC_OK && sent_type == TINC_T_WIFI_FORGET);
     assert(sent_len == 1 && sent[0] == 1);
-    assert(admin_forget(TINC_WIFI_SLOTS) == TINC_ERR_BAD_ARG);
+    assert(admin_forget(TINC_WIFI_SLOTS_MAX) == TINC_ERR_BAD_ARG);
     set_reply(NULL, 0, TINC_ERR_LOCKED);
     assert(admin_forget(0) == TINC_ERR_LOCKED);
 

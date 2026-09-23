@@ -26,9 +26,13 @@ static term_panel_t *dlg, *dlg_list, *f_ssid_p, *f_pass_p, *f_hint, *chk_hidden,
 
 static tinc_err_t link_err = TINC_ERR_NOT_INIT;
 static admin_status_t st;
-static admin_slots_t sl;
-static char slot_rows[TINC_WIFI_SLOTS][TINC_SSID_MAX + 24];
-static const char *slot_items[TINC_WIFI_SLOTS];
+/* The board says how many slots it has (up to 254); the list shows
+ * SLOTS_VISIBLE at a time and scrolls (titrmlib adds a scrollbar). */
+#define SLOTS_VISIBLE 5
+static uint8_t n_slots;
+static char slot_rows[TINC_WIFI_SLOTS_MAX][TINC_SSID_MAX + 24];
+static const char *slot_items[TINC_WIFI_SLOTS_MAX];
+static char slots_title[40];
 static uint8_t cur_slot;
 static bool started, testing, test_ok;
 static char msg[64];
@@ -117,39 +121,44 @@ static void show_detail(int item);
 
 static void refresh(void)
 {
-    uint8_t i;
+    char ssid[TINC_SSID_MAX + 1];
+    uint8_t i, wflags;
 
     if (link_err != TINC_OK)
         link_err = tinc_init(&(tinc_config_t){ "TINCLIBC", 0, 0 });
     if (link_err == TINC_OK)
         link_err = admin_status(&st);
     if (link_err == TINC_OK)
-        link_err = admin_list(&sl);
-    if (link_err != TINC_OK) {
-        memset(&sl, 0, sizeof sl);
-        st.wifi_locked = false;
-    }
+        link_err = admin_slot_count(&n_slots);
 
-    for (i = 0; i < TINC_WIFI_SLOTS; i++) {
-        bool on = link_err == TINC_OK && st.wifi_state == TINC_WIFI_CONNECTED &&
-                  st.slot == i;
-        const char *hid = sl.wflags[i] & TINC_WF_HIDDEN ? " (hidden)" : "";
-        if (!sl.ssid[i][0])
+    for (i = 0; link_err == TINC_OK && i < n_slots; i++) {
+        bool on = st.wifi_state == TINC_WIFI_CONNECTED && st.slot == i;
+        const char *hid;
+
+        if ((link_err = admin_get(i, ssid, &wflags)) != TINC_OK)
+            break;
+        hid = wflags & TINC_WF_HIDDEN ? " (hidden)" : "";
+        if (!ssid[0])
             snprintf(slot_rows[i], sizeof slot_rows[i], "%u (empty)", i + 1);
         else if (on)
             snprintf(slot_rows[i], sizeof slot_rows[i], "%u %s%s %s%d", i + 1,
-                     sl.ssid[i], hid, bars(st.rssi), st.rssi);
+                     ssid, hid, bars(st.rssi), st.rssi);
         else
-            snprintf(slot_rows[i], sizeof slot_rows[i], "%u %s%s", i + 1,
-                     sl.ssid[i], hid);
+            snprintf(slot_rows[i], sizeof slot_rows[i], "%u %s%s", i + 1, ssid, hid);
         slot_items[i] = slot_rows[i];
     }
+    if (link_err != TINC_OK) {
+        n_slots = 0;
+        st.wifi_locked = false;
+    }
+
     /* Locked on the board: the list stays readable but greyed out. */
     term_panel_set_colors(slots, st.wifi_locked ? COLOR_GREY : TERM_COLOR_WHITE,
                           TERM_COLOR_BLACK);
-    term_panel_set_title(slots, st.wifi_locked ? "Saved networks (locked)"
-                                               : "Saved networks");
-    term_list_set_items(slots, slot_items, TINC_WIFI_SLOTS);
+    snprintf(slots_title, sizeof slots_title, "Saved networks (%u)%s", n_slots,
+             st.wifi_locked ? " locked" : "");
+    term_panel_set_title(slots, slots_title);
+    term_list_set_items(slots, slot_items, n_slots);
     show_detail(term_list_selected(menu));
 }
 
@@ -501,7 +510,7 @@ int main(void)
     term_make_list(menu, menu_items, sizeof menu_items / sizeof *menu_items);
 
     right = term_split(body, TERM_HORIZONTAL, TERM_FILL);
-    slots = term_split(right, TERM_VERTICAL, TERM_FIXED(TINC_WIFI_SLOTS + 2));
+    slots = term_split(right, TERM_VERTICAL, TERM_FIXED(SLOTS_VISIBLE + 2));
     term_panel_set_border(slots, true);
     term_panel_set_title(slots, "Saved networks");
     term_make_list(slots, slot_items, 0);
