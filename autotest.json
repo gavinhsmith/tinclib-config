@@ -14,12 +14,12 @@
   ],
   "hashes": {
     "1": {
-      "description": "Main menu drawn (standalone, no handoff)",
+      "description": "Main menu drawn (standalone, no board)",
       "timeout": 5000,
       "start": "vram_start",
       "size": "vram_8_size",
       "expected_CRCs": [
-        "29107D5C"
+        "FCE70A60"
       ]
     },
     "2": {

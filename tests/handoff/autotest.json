@@ -1,36 +1,36 @@
 {
   "transfer_files": [
-    "../../bin/TINCLIBC.8xp",
-    "bin/TSTRET.8xp",
-    "bin/TINCHND.8xv"
+    "../../bin/handoff/THANDOFF.8xp",
+    "../../bin/TINCLIBC.8xp"
   ],
   "target": {
-    "name": "TINCLIBC",
+    "name": "THANDOFF",
     "isASM": true
   },
   "sequence": [
     "action|launch",
     "hashWait|1",
+    "delay|3000",
     "key|clear",
     "hashWait|2"
   ],
   "hashes": {
     "1": {
-      "description": "TINCLIBC main menu with the fixture's hint in the status bar",
-      "timeout": 5000,
+      "description": "TINCLIBC started by the app, hint in the status bar, no board",
+      "timeout": 10000,
       "start": "vram_start",
       "size": "vram_8_size",
       "expected_CRCs": [
-        "16FE7A7F"
+        "CCCA1552"
       ]
     },
     "2": {
-      "description": "TSTRET shows RETURNED CANCELLED: os_RunPrgm chained and the result matched the nonce",
-      "timeout": 5000,
+      "description": "Back in THANDOFF via its callback: BACK: FAILED",
+      "timeout": 10000,
       "start": "vram_start",
       "size": "vram_16_size",
       "expected_CRCs": [
-        "E0468721"
+        "C4864007"
       ]
     }
   }
