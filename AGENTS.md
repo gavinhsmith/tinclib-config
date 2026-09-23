@@ -3,8 +3,9 @@
 ## What this repo is
 
 **TINCLIBC.8xp** — the standalone TI-84 Plus CE program that owns all
-board *configuration* state: Wi-Fi scanning/connecting, the 3 saved
-network profiles, the global insecure-TLS-mode toggle, and (per the
+board *configuration* state: Wi-Fi scanning/connecting, the saved network
+profiles (as many slots as the firmware reports), the global
+insecure-TLS-mode toggle, and (per the
 handoff design) acting as the landing point when another program needs
 setup done before it can use the network.
 
@@ -16,14 +17,14 @@ pinned dependency for the admin message definitions.
 ## Project status
 
 Update this section when something lands or the release state changes.
-**As of 2026-09-23** (protocol v0.2.0). No tags or releases yet.
+**As of 2026-09-23** (protocol v0.3.0). No tags or releases yet.
 
 **Dependencies** (git submodules under `lib/`):
 
 | Submodule | Pin |
 |---|---|
-| `tinclib` | `phase-2` @ `5f75687` (protocol v0.2.0; not merged or tagged yet; switch to its tag once it exists) |
-| `tinclib-protocol` | v0.2.0 |
+| `tinclib` | `phase-3` @ `9a5b26b` (protocol v0.3.0; not merged or tagged yet; switch to its tag once it exists) |
+| `tinclib-protocol` | v0.3.0 |
 | `titrmlib` | v0.2.0 |
 
 tinclib has its own nested copy of the protocol at
@@ -31,19 +32,35 @@ tinclib has its own nested copy of the protocol at
 and CI fails if its pin differs from `lib/tinclib-protocol`. Bump both
 together.
 
+Upstream moved the protocol's `v0.2.0` tag (`9c21d6e` to `1c008bc`, same
+files, rewritten history). Always pin by tag and check the commit a tag
+points to when bumping; a moved tag leaves old pins pointing at commits no
+branch contains.
+
 **Working:**
 - Talks to the board through tinclib:
   - status screen (Wi-Fi state, connected slot, RSSI, IP)
-  - the 3 saved slots, with set (SSID + password + a hidden-network
-    checkbox, sent as `TINC_WF_HIDDEN`) and forget. Hidden slots are marked
-    "(hidden)" in the list.
+  - saved slots, as many as the board reports. The count comes from the
+    HELLO reply (`wifi_slots`, 1..254). tinclib doesn't keep that reply,
+    so `admin_slot_count()` sends its own HELLO (idempotent, same
+    parameters as tinclib's). If tinclib ever exposes the count, use that
+    instead.
+    - Each slot is read with `WIFI_GET`, one frame per slot.
+    - The list box shows 5 rows (`SLOTS_VISIBLE`). titrmlib's list keeps
+      the selection in view and draws a scrollbar when there are more.
+      The title shows the count, e.g. "Saved networks (12)".
+    - Row buffers are sized for `TINC_WIFI_SLOTS_MAX` (254), about 14 KB
+      of static data (32 KB total, of about 60 KB available).
+    - Set (SSID + password + a hidden-network checkbox, sent as
+      `TINC_WF_HIDDEN`) and forget. Hidden slots are marked "(hidden)".
+      Slot range is checked by the board (`ERR_BAD_ARG`), not here.
   - connection test: Wi-Fi, then one HTTP GET to `http://example.com/`
 - **Wi-Fi lock (0.2):** when STATUS reports `TINC_STATUSF_WIFI_LOCKED`,
   TINCLIBC treats it as "the board won't change profiles". The native PC
   build of the firmware uses this, since it can only use the PC's own
   connection.
   - The slot list is greyed out (palette index 0xB5) and titled
-    "Saved networks (locked)", and the status panel says so.
+    "Saved networks (N) locked", and the status panel says so.
   - Selecting a slot opens a "Wi-Fi locked" notice instead of the
     set/forget menu.
   - The lock is only ever set on the board (build flag or switch), never
@@ -60,21 +77,22 @@ together.
   see the handoff rules below. `tests/handoff` (CEmu) is red in CI until
   this is fixed in CEdev's `os_RunPrgm` or in tinclib. That's expected: the
   user chose to leave it failing visibly.
-- **Protocol 0.2 has only WIFI_LIST/SET/FORGET as admin commands.** Scan,
+- **Protocol 0.3 has only WIFI_GET/SET/FORGET as admin commands.** Scan,
   connect-now, the insecure-TLS toggle (`ERR_INSECURE_DISABLED` doesn't
   exist yet either), CA bundle updates, firmware info, HTTPS and time sync
   all need `tinclib-protocol` (and the firmware) first. The UI shows these
-  as "not in protocol 0.2".
-- **No 0.2 firmware yet.** `tinclib-firmware` `main` still pins protocol
-  v0.1.0. Pre-1.0, HELLO needs an exact MAJOR.MINOR match, so a 0.1 board
-  answers `ERR_VERSION`, and the status screen says to update the firmware.
+  as "not in protocol 0.3".
+- **No 0.3 firmware yet.** `tinclib-firmware` `main` pins protocol 0.2
+  (`1c008bc`). Pre-1.0, HELLO needs an exact MAJOR.MINOR match, so an older
+  board answers `ERR_VERSION`, and the status screen says to update the
+  firmware.
 - **Real hardware:** tinclib's AGENTS.md reports that srldrvce supports only
   CDC, FTDI and PL2303 USB-serial bridges. CP210x and CH340 boards (the
   common ESP8266 dev boards) aren't seen by the calculator. That's a
   hardware decision for the user, not something to fix here.
 - **Connect order:** the UI says the board picks the strongest saved
-  network. Protocol 0.2's `WIFI_SET` comment says "first reachable slot,
-  0 -> 2" instead. The two design docs disagree, so check with the user
+  network. Protocol 0.3's `WIFI_SET` comment says "first reachable slot,
+  0 -> wifi_slots-1" instead. The two design docs disagree, so check with the user
   before changing either.
 - **RSSI only for the connected slot:** STATUS carries RSSI for the current
   connection only, so other saved slots can't show signal strength until
@@ -121,7 +139,7 @@ together.
 
 **TINCLIBC owns (admin commands, `0x40+` in the protocol):**
 - Wi-Fi scan
-- Connect to / forget a saved slot (3 slots max)
+- Connect to / forget a saved slot (count set by the firmware)
 - Setting a slot's SSID + password (write-only — no command ever reads a
   password back, and this program must never display one that was
   previously saved, since there's no way to retrieve it anyway)
@@ -204,7 +222,7 @@ Rules:
 
 ## Wi-Fi UX specifics
 
-- **3 slots, ranked at connect-time by strongest RSSI match**, not
+- **Slots (count set by the firmware), ranked at connect-time by strongest RSSI match**, not
   slot-priority order — this program's scan/connect UI should reflect
   that model (e.g. show signal strength per saved network, not a strict
   ordered list implying priority).
@@ -225,7 +243,7 @@ Rules:
 - Off by default. This is the **only** place in the whole system where it
   can be turned on — no per-app or per-request-only override exists
   (to be enforced protocol-side via `ERR_INSECURE_DISABLED`, which
-  `tinclib-protocol` v0.2.0 doesn't define yet; nor is there a toggle
+  `tinclib-protocol` v0.3.0 doesn't define yet; nor is there a toggle
   command). Do not add any other path to enable it.
 - The UI here should make clear this is a global, security-relevant
   setting, not a per-connection convenience flag.

@@ -19,30 +19,49 @@ tinc_err_t admin_status(admin_status_t *st)
     return TINC_OK;
 }
 
-tinc_err_t admin_list(admin_slots_t *slots)
+tinc_err_t admin_slot_count(uint8_t *count)
 {
-    tinc_err_t e = tinc_xfer(TINC_T_WIFI_LIST, NULL, 0, 0);
-    const uint8_t *p = tinc_g.parser.payload;
-    uint16_t len = tinc_g.parser.len, pos = 0;
-    uint8_t i, n;
+    uint8_t req[TINC_HELLO_REQ_LEN];
+    tinc_piece_t piece = { req, sizeof req };
+    tinc_err_t e;
+    uint8_t n;
 
+    /* Same HELLO tinclib sends, so the board's view of us doesn't change. */
+    req[TINC_HELLO_MAJOR] = TINC_PROTO_MAJOR;
+    req[TINC_HELLO_MINOR] = TINC_PROTO_MINOR;
+    tinc_put_u16(req + TINC_HELLO_CAPS, 0);
+    tinc_put_u16(req + TINC_HELLO_MAX_PAYLOAD, TINC_RX_BUF_SIZE);
+    if ((e = tinc_xfer(TINC_T_HELLO, &piece, 1, 0)) != TINC_OK)
+        return e;
+    if (tinc_g.parser.len < TINC_HELLO_RESP_LEN)
+        return TINC_ERR_BAD_LEN;
+    n = tinc_g.parser.payload[TINC_HELLO_WIFI_SLOTS];
+    if (n == 0 || n > TINC_WIFI_SLOTS_MAX)
+        return TINC_ERR_BAD_LEN;
+    *count = n;
+    return TINC_OK;
+}
+
+tinc_err_t admin_get(uint8_t slot, char *ssid, uint8_t *wflags)
+{
+    tinc_piece_t piece = { &slot, 1 };
+    tinc_err_t e = tinc_xfer(TINC_T_WIFI_GET, &piece, 1, 0);
+    const uint8_t *p = tinc_g.parser.payload;
+    uint16_t len = tinc_g.parser.len;
+    uint8_t n;
+
+    ssid[0] = '\0';
+    *wflags = 0;
     if (e != TINC_OK)
         return e;
-    memset(slots, 0, sizeof *slots);
-    for (i = 0; i < TINC_WIFI_SLOTS; i++) {
-        if (pos >= len || (n = p[pos]) > TINC_SSID_MAX || pos + 1u + n > len)
-            goto bad;
-        memcpy(slots->ssid[i], p + pos + 1, n);
-        pos = (uint16_t)(pos + 1u + n);
-    }
-    /* then one wflags byte per slot */
-    if (pos + TINC_WIFI_SLOTS > len)
-        goto bad;
-    memcpy(slots->wflags, p + pos, TINC_WIFI_SLOTS);
-    return TINC_OK; /* trailing bytes ignored: payloads are append-only */
-bad:
-    memset(slots, 0, sizeof *slots);
-    return TINC_ERR_BAD_LEN;
+    /* ssid_len, ssid, wflags; trailing bytes ignored (append-only) */
+    if (len < 1 || (n = p[TINC_WGET_SSID_LEN]) > TINC_SSID_MAX ||
+        TINC_WGET_SSID + n + 1u > len)
+        return TINC_ERR_BAD_LEN;
+    memcpy(ssid, p + TINC_WGET_SSID, n);
+    ssid[n] = '\0';
+    *wflags = p[TINC_WGET_SSID + n];
+    return TINC_OK;
 }
 
 tinc_err_t admin_set(uint8_t slot, const char *ssid, const char *pass, uint8_t wflags)
@@ -52,7 +71,7 @@ tinc_err_t admin_set(uint8_t slot, const char *ssid, const char *pass, uint8_t w
     tinc_piece_t piece = { buf, 0 };
     tinc_err_t e;
 
-    if (slot >= TINC_WIFI_SLOTS || sl == 0 || sl > TINC_SSID_MAX || pl > TINC_PASS_MAX)
+    if (slot >= TINC_WIFI_SLOTS_MAX || sl == 0 || sl > TINC_SSID_MAX || pl > TINC_PASS_MAX)
         return TINC_ERR_BAD_ARG;
     buf[TINC_WSET_SLOT] = slot;
     buf[TINC_WSET_SSID_LEN] = (uint8_t)sl;
@@ -71,7 +90,7 @@ tinc_err_t admin_forget(uint8_t slot)
 {
     tinc_piece_t piece = { &slot, 1 };
 
-    if (slot >= TINC_WIFI_SLOTS)
+    if (slot >= TINC_WIFI_SLOTS_MAX)
         return TINC_ERR_BAD_ARG;
     return tinc_xfer(TINC_T_WIFI_FORGET, &piece, 1, 0);
 }
