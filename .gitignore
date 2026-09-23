@@ -60,3 +60,7 @@ obj/
 *.8xp
 *.8xv
 *.rom
+
+# copied in by `make relaunch`
+tests/relaunch/src/handoff.c
+tests/build/

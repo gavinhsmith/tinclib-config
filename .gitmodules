@@ -1,0 +1,6 @@
+[submodule "lib/tinclib-protocol"]
+	path = lib/tinclib-protocol
+	url = https://github.com/gavinhsmith/tinclib-protocol.git
+[submodule "lib/titrmlib"]
+	path = lib/titrmlib
+	url = https://github.com/gavinhsmith/titrmlib.git

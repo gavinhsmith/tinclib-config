@@ -1,31 +1,63 @@
-# ti-84-ce-project
-A template for a C project for the TI-84 Plus CE w/ CICD, testing features, etc.
+# tinclib-config
+
+**TINCLIBC.8xp**: the TI-84 Plus CE program that owns TINCLIB board configuration
+(Wi-Fi slots, the global insecure-TLS toggle) and is where apps hand off
+to when they need setup. See [AGENTS.md](AGENTS.md) for the design rules.
+
+Status: skeleton. The UI shell and the `TINCHND` handoff work. Nothing talks to
+the board yet: that needs `tinclib`'s serial link, and admin messages beyond
+protocol 0.1.
 
 ## Setup
 Install the [CE C toolchain](https://ce-programming.github.io/toolchain/) (v15.0) and put `CEdev/bin` on your `PATH`.
+Dependencies are pinned git submodules under `lib/`:
+
+| Submodule | Tag |
+|---|---|
+| [tinclib-protocol](https://github.com/gavinhsmith/tinclib-protocol) | v0.1.0 |
+| [titrmlib](https://github.com/gavinhsmith/titrmlib) | v0.2.0 |
+
+```sh
+git clone --recursive https://github.com/gavinhsmith/tinclib-config.git
+# or, in an existing clone:
+git submodule update --init
+```
 
 ## Build
 ```sh
-make          # -> bin/DEMO.8xp
-make debug    # debug build
+make            # -> bin/TINCLIBC.8xp
+make relaunch   # -> tests/relaunch/bin/TSTRET.8xp + TINCHND.8xv (handoff test)
 make clean
 ```
-Rename the program via `NAME` in `makefile` (and update `autotest.json` to match).
+To run it, the calculator needs the [CE C libraries](https://github.com/CE-Programming/libraries/releases).
+
+## Handoff (`TINCHND` appvar)
+The byte layout is defined in [`src/handoff.h`](src/handoff.h). `tinclib`'s
+`tinc_openConfig()` must write exactly that layout. TINCLIBC only acts on a
+request whose result is still `PENDING`. It writes the result back only for the
+nonce it read, then relaunches `return_to` with `os_RunPrgm`.
 
 ## Test
-Tests run in CEmu via `cemu-autotester` (ships with the toolchain), driven by `autotest.json`.
-You need a TI-84 Plus CE ROM dump (not included, it's copyrighted):
+Host unit tests (plain C, ASan + UBSan):
 ```sh
-AUTOTESTER_ROM=/path/to/ce.rom make test
+make -C tests            # or: make host-test
+make -C tests SANITIZE=  # toolchains without sanitizers (e.g. MinGW)
 ```
-To add a screen check: add a `hashWait|N` step and a hash entry with a placeholder CRC,
-run the test, and copy the actual CRC the autotester reports into `expected_CRCs`.
-See the [autotester docs](https://github.com/CE-Programming/CEmu/tree/master/tests/autotester).
 
-If your program uses the CE libraries (graphx, fileioc, ...), also set
-`AUTOTESTER_LIBS_GROUP` to a `clibs.8xg` from the [libraries release](https://github.com/CE-Programming/libraries/releases).
+Emulator tests run in CEmu via `cemu-autotester`, which ships with the toolchain.
+You need a TI-84 Plus CE ROM dump (not included; it's copyrighted) and
+`clibs.8xg` from the [libraries release](https://github.com/CE-Programming/libraries/releases):
+```sh
+export AUTOTESTER_ROM=/path/to/ce.rom AUTOTESTER_LIBS_GROUP=/path/to/clibs.8xg
+make test                                  # autotest.json: menu draws, [clear] exits
+cemu-autotester tests/relaunch/autotest.json   # handoff -> os_RunPrgm -> TSTRET
+```
+The TINCLIBC screen CRCs are still `00000000` placeholders. Run each test once,
+check the screen, and copy the CRC the autotester reports into `expected_CRCs`.
 
 ## CI/CD
-`.github/workflows/ci.yml` builds on every push/PR and uploads `bin/*.8xp` as an artifact.
-- **Tests** run when the `CE_ROM_BASE64` repo secret is set (`base64 -w0 ce.rom`), otherwise skipped with a warning.
-- **Releases**: push a `v*` tag to publish a GitHub release with the `.8xp` attached.
+`.github/workflows/ci.yml` runs the host tests, then builds TINCLIBC and the
+relaunch test.
+- **Emulator tests** run only when the `CE_ROM_BASE64` repo secret is set
+  (`base64 -w0 ce.rom`). Otherwise they're skipped with a warning.
+- **Releases**: push a `v*` tag to publish a GitHub release with `TINCLIBC.8xp` attached.
