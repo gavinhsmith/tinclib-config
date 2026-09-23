@@ -14,6 +14,15 @@ jobs:
         with:
           submodules: true
 
+      - name: tinclib pins the same protocol as lib/tinclib-protocol
+        run: |
+          ours=$(git -C lib/tinclib-protocol rev-parse HEAD)
+          theirs=$(git -C lib/tinclib ls-tree HEAD external/tinclib-protocol | awk '{print $3}')
+          if [ "$ours" != "$theirs" ]; then
+            echo "::error::lib/tinclib-protocol is $ours but tinclib pins $theirs; bump them together."
+            exit 1
+          fi
+
       - name: Host unit tests (ASan + UBSan)
         run: make -C tests CC=gcc
 
@@ -34,7 +43,7 @@ jobs:
       - name: Build
         run: |
           make
-          make relaunch
+          make handoff
 
       - uses: actions/upload-artifact@v4
         with:
@@ -57,7 +66,7 @@ jobs:
           # The ROM is arTIfiCE-jailbroken with clibs installed; autotest.py
           # launches through AsmHook2 since OS 5.5+ has no Asm(.
           AUTOTESTER_ROM="$RUNNER_TEMP/ce.rom" \
-            python3 tests/autotest.py autotest.json tests/relaunch/autotest.json
+            python3 tests/autotest.py autotest.json tests/handoff/autotest.json
 
       - name: Upload failing screens
         if: failure()

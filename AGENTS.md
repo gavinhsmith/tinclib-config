@@ -47,18 +47,18 @@ layout — check `tinclib`'s current implementation before changing this,
 since a mismatch here fails silently and confusingly.
 
 ```
-TINCHND appvar
-  magic + version        2B
+TINCHND appvar  (byte layout: lib/tinclib/src/tinc_config.c, mirrored in src/handoff.h)
+  magic + version        2B    'H', 1
   nonce                  4B    app-chosen; result must echo it back
-  return_to              9B    program name to relaunch (8 chars + NUL)
+  return_to              9B    the app's name (8 chars + NUL), display only
   action                 1B    SETUP_WIFI | TEST_CONN  (v1 action set)
   requirements           1B    bitfield: NEEDS_WIFI | NEEDS_TIME
-  hint_text              var   short message shown to the user
+  hint_len + hint_text   1B+var  short message shown to the user (<= 63)
   ---- filled in by TINCLIBC ----
-  result                 1B    OK | CANCELLED | FAILED
-  detail                 var   e.g. error code
+  result                 1B    NONE (as written by the app) | OK | CANCELLED | FAILED
+  nonce echo             4B
+  detail_len + detail    1B+var  e.g. error code
 ```
-
 Rules:
 - **Nonce must be checked, not just echoed.** A stale result left over
   from an earlier abandoned request must be distinguishable from a fresh
@@ -71,11 +71,17 @@ Rules:
 - v1 action set is just `SETUP_WIFI` and `TEST_CONN`. Anything
   app-specific (API keys, per-app profiles) is explicitly **not** a
   TINCLIBC action — see above.
-- After finishing, TINCLIBC relaunches the program named in `return_to`.
-  **Verify the toolchain's relaunch primitive actually behaves this way**
-  (doesn't return, chains reliably) — this was flagged as needing early
-  prototyping in the broader project design; don't assume it "just works"
-  without confirming in this repo's own testing.
+- After finishing, TINCLIBC writes the result and **exits**. It never
+  relaunches `return_to`: the app comes back through the return callback
+  `tinc_openConfig()` passed to `os_RunPrgm` (tinclib's hardware spike found
+  that relaunching crashes the calculator). `tests/test_interop.c` checks the
+  layout against tinclib's real code; `tests/handoff` runs the round trip
+  in CEmu.
+- **Known blocker (not fixed here):** in CEmu (OS 5.8.5), returning through
+  that callback crashes the calculator (RAM Cleared) when the called
+  program is bigger than the calling app. TINCLIBC (~38 KB) is bigger than
+  most apps. It's in CEdev's `os_RunPrgm` return path or the OS, underneath
+  tinclib's handoff design: fix it there, not with a workaround here.
 - `TEST_CONN` should exercise Wi-Fi + time-sync + one real HTTPS request,
   since "connected" and "can actually complete an HTTPS request" are
   different questions on this hardware (see TLS constraints below) — a
@@ -122,8 +128,8 @@ in `tinclib-protocol`.
 
 ## Toolchain
 
-Same as `tinclib`: CE C/C++ Toolchain (CEdev), links against `tinclib`
-plus this repo's own admin-command source (kept separate from
-`tinclib.h` so that apps using only the library never pull in admin code
-— verify this separation actually holds in the build, don't just assume
-the folder structure enforces it).
+Same as `tinclib`: CE C/C++ Toolchain (CEdev). Links `tinclib`
+(`lib/tinclib`) plus this repo's own admin-command source, `src/admin.c`,
+which reaches the link through tinclib's internal `tinc_xfer()`
+(`tinc_internal.h`). `tinclib.h` exposes none of it, so apps that only use
+the library never pull in admin code.

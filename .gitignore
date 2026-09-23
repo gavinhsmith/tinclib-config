@@ -61,8 +61,6 @@ obj/
 *.8xv
 *.rom
 
-# copied in by `make relaunch`
-tests/relaunch/src/handoff.c
 tests/build/
 
 # autotester failure dumps

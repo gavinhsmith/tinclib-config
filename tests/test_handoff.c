@@ -20,7 +20,7 @@ static uint16_t make_req(uint8_t *b, uint32_t nonce, const char *ret,
     b[HND_OFF_REQS] = HND_NEEDS_WIFI;
     b[HND_OFF_HINTLEN] = hl;
     memcpy(b + HND_OFF_HINT, hint, hl);
-    /* result = PENDING, detail_len = 0 (already zeroed) */
+    /* tail: result NONE, echo 0, detail_len 0 (already zeroed) */
     return (uint16_t)(HND_MIN_LEN + hl);
 }
 
@@ -45,7 +45,7 @@ int main(void)
     b[HND_OFF_ACTION] = 7;   assert(!hnd_parse(b, n, &r)); b[HND_OFF_ACTION] = HND_SETUP_WIFI;
     assert(!hnd_parse(b, n - 1, &r));                  /* truncated */
     assert(!hnd_parse(b, 3, &r));
-    b[HND_OFF_HINTLEN] = 200; assert(!hnd_parse(b, n, &r)); b[HND_OFF_HINTLEN] = 10;
+    b[HND_OFF_HINTLEN] = 64;   assert(!hnd_parse(b, n, &r)); b[HND_OFF_HINTLEN] = 10;
     b[n - 1] = 5;             assert(!hnd_parse(b, n, &r)); b[n - 1] = 0; /* detail past end */
     memset(b + HND_OFF_RETURN, 'X', HND_RETURN_LEN);
     assert(!hnd_parse(b, n, &r));                      /* return_to not terminated */

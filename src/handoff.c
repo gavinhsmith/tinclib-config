@@ -1,9 +1,9 @@
 #include <string.h>
 #include "handoff.h"
-#include "protocol.h" /* tinc_get_u32 */
+#include "protocol.h" /* tinc_get_u32 / tinc_put_u32 */
 
-/* Offset of the result byte, or 0 if the header is malformed. */
-static uint16_t result_off(const uint8_t *buf, uint16_t len)
+/* Offset of the tail (result byte), or 0 if the header is malformed. */
+static uint16_t tail_off(const uint8_t *buf, uint16_t len)
 {
     uint16_t off;
 
@@ -12,18 +12,18 @@ static uint16_t result_off(const uint8_t *buf, uint16_t len)
         buf[HND_OFF_HINTLEN] > HND_HINT_MAX)
         return 0;
     off = HND_OFF_HINT + buf[HND_OFF_HINTLEN];
-    if (off + 2u > len || off + 2u + buf[off + 1u] > len ||
-        buf[off + 1u] > HND_DETAIL_MAX)
+    if (off + HND_T_DETAIL > len || buf[off + HND_T_DETLEN] > HND_DETAIL_MAX ||
+        off + HND_T_DETAIL + buf[off + HND_T_DETLEN] > len)
         return 0;
     return off;
 }
 
 int hnd_parse(const uint8_t *buf, uint16_t len, hnd_request_t *req)
 {
-    uint16_t off = result_off(buf, len);
+    uint16_t off = tail_off(buf, len);
     uint8_t action, hint_len;
 
-    if (!off || buf[off] != HND_PENDING)
+    if (!off || buf[off + HND_T_RESULT] != HND_NONE)
         return 0;
     if (!memchr(buf + HND_OFF_RETURN, '\0', HND_RETURN_LEN) ||
         buf[HND_OFF_RETURN] == '\0')
@@ -46,24 +46,25 @@ uint16_t hnd_write_result(uint8_t *buf, uint16_t len, uint16_t cap,
                           uint32_t nonce, uint8_t result,
                           const uint8_t *detail, uint8_t detail_len)
 {
-    uint16_t off = result_off(buf, len);
+    uint16_t off = tail_off(buf, len);
 
     if (!off || tinc_get_u32(buf + HND_OFF_NONCE) != nonce ||
-        detail_len > HND_DETAIL_MAX || off + 2u + detail_len > cap)
+        detail_len > HND_DETAIL_MAX || off + HND_T_DETAIL + detail_len > cap)
         return 0;
-    buf[off] = result;
-    buf[off + 1u] = detail_len;
+    buf[off + HND_T_RESULT] = result;
+    tinc_put_u32(buf + off + HND_T_ECHO, nonce);
+    buf[off + HND_T_DETLEN] = detail_len;
     if (detail_len)
-        memcpy(buf + off + 2u, detail, detail_len);
-    return (uint16_t)(off + 2u + detail_len);
+        memcpy(buf + off + HND_T_DETAIL, detail, detail_len);
+    return (uint16_t)(off + HND_T_DETAIL + detail_len);
 }
 
 int hnd_result_for(const uint8_t *buf, uint16_t len, uint32_t nonce)
 {
-    uint16_t off = result_off(buf, len);
+    uint16_t off = tail_off(buf, len);
 
-    if (!off || tinc_get_u32(buf + HND_OFF_NONCE) != nonce ||
-        buf[off] == HND_PENDING)
+    if (!off || buf[off + HND_T_RESULT] == HND_NONE ||
+        tinc_get_u32(buf + off + HND_T_ECHO) != nonce)
         return -1;
-    return buf[off];
+    return buf[off + HND_T_RESULT];
 }
