@@ -14,18 +14,26 @@
   ],
   "hashes": {
     "1": {
-      "description": "Main menu drawn (standalone, no handoff). Placeholder: record on first run",
+      "description": "Main menu drawn (standalone, no handoff)",
       "timeout": 5000,
       "start": "vram_start",
       "size": "vram_8_size",
-      "expected_CRCs": [ "00000000" ]
+      "expected_CRCs": [
+        "29107D5C"
+      ]
     },
     "2": {
       "description": "Back on the home screen",
       "timeout": 5000,
       "start": "vram_start",
       "size": "vram_16_size",
-      "expected_CRCs": [ "FFAF89BA", "101734A5", "9DA19F44", "A32840C8", "349F4775" ]
+      "expected_CRCs": [
+        "FFAF89BA",
+        "101734A5",
+        "9DA19F44",
+        "A32840C8",
+        "349F4775"
+      ]
     }
   }
 }

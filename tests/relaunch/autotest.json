@@ -16,18 +16,22 @@
   ],
   "hashes": {
     "1": {
-      "description": "TINCLIBC main menu with the fixture's hint in the status bar. Placeholder: record on first run",
+      "description": "TINCLIBC main menu with the fixture's hint in the status bar",
       "timeout": 5000,
       "start": "vram_start",
       "size": "vram_8_size",
-      "expected_CRCs": [ "00000000" ]
+      "expected_CRCs": [
+        "16FE7A7F"
+      ]
     },
     "2": {
-      "description": "TSTRET shows RETURNED CANCELLED: os_RunPrgm chained and the result matched the nonce. Placeholder: record on first run",
+      "description": "TSTRET shows RETURNED CANCELLED: os_RunPrgm chained and the result matched the nonce",
       "timeout": 5000,
       "start": "vram_start",
       "size": "vram_16_size",
-      "expected_CRCs": [ "00000000" ]
+      "expected_CRCs": [
+        "E0468721"
+      ]
     }
   }
 }

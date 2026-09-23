@@ -54,13 +54,17 @@ jobs:
             -H "Authorization: Bearer $CE_ROM_TOKEN" \
             -H "Accept: application/vnd.github.raw" \
             https://api.github.com/repos/gavinhsmith/ce-rom/contents/ti-84ce.rom
-          # titrmlib needs graphx/keypadc/fileioc on the calculator.
-          curl -sSLo "$RUNNER_TEMP/clibs.8xg" \
-            https://github.com/CE-Programming/libraries/releases/download/v15.0/clibs.8xg
-          export AUTOTESTER_ROM="$RUNNER_TEMP/ce.rom"
-          export AUTOTESTER_LIBS_GROUP="$RUNNER_TEMP/clibs.8xg"
-          make test
-          cemu-autotester tests/relaunch/autotest.json
+          # The ROM is arTIfiCE-jailbroken with clibs installed; autotest.py
+          # launches through AsmHook2 since OS 5.5+ has no Asm(.
+          AUTOTESTER_ROM="$RUNNER_TEMP/ce.rom" \
+            python3 tests/autotest.py autotest.json tests/relaunch/autotest.json
+
+      - name: Upload failing screens
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: autotest-screens
+          path: tests/build/*/*.png
 
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
