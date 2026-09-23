@@ -43,13 +43,17 @@ jobs:
 
       - name: Test
         env:
-          CE_ROM_BASE64: ${{ secrets.CE_ROM_BASE64 }}
+          # Read-only token for the private repo holding the ROM (too big for a secret).
+          CE_ROM_TOKEN: ${{ secrets.CE_ROM_TOKEN }}
         run: |
-          if [ -z "$CE_ROM_BASE64" ]; then
-            echo "::warning::CE_ROM_BASE64 secret not set; skipping autotests"
+          if [ -z "$CE_ROM_TOKEN" ]; then
+            echo "::warning::CE_ROM_TOKEN secret not set; skipping autotests"
             exit 0
           fi
-          echo "$CE_ROM_BASE64" | base64 -d > "$RUNNER_TEMP/ce.rom"
+          curl -fsSLo "$RUNNER_TEMP/ce.rom" \
+            -H "Authorization: Bearer $CE_ROM_TOKEN" \
+            -H "Accept: application/vnd.github.raw" \
+            https://api.github.com/repos/gavinhsmith/ce-rom/contents/ce.rom
           # titrmlib needs graphx/keypadc/fileioc on the calculator.
           curl -sSLo "$RUNNER_TEMP/clibs.8xg" \
             https://github.com/CE-Programming/libraries/releases/download/v15.0/clibs.8xg

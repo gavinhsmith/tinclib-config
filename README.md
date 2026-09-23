@@ -58,6 +58,9 @@ check the screen, and copy the CRC the autotester reports into `expected_CRCs`.
 ## CI/CD
 `.github/workflows/ci.yml` runs the host tests, then builds TINCLIBC and the
 relaunch test.
-- **Emulator tests** run only when the `CE_ROM_BASE64` repo secret is set
-  (`base64 -w0 ce.rom`). Otherwise they're skipped with a warning.
+- **Emulator tests** run only when the `CE_ROM_TOKEN` repo secret is set.
+  Otherwise they're skipped with a warning. The ROM is ~4 MB, far over the
+  48 KB secret limit, so it lives as `ce.rom` in the private repo
+  `gavinhsmith/ce-rom`. `CE_ROM_TOKEN` is a fine-grained PAT with read-only
+  *Contents* access to that one repo.
 - **Releases**: push a `v*` tag to publish a GitHub release with `TINCLIBC.8xp` attached.
