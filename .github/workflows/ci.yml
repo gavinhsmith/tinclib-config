@@ -53,7 +53,7 @@ jobs:
           curl -fsSLo "$RUNNER_TEMP/ce.rom" \
             -H "Authorization: Bearer $CE_ROM_TOKEN" \
             -H "Accept: application/vnd.github.raw" \
-            https://api.github.com/repos/gavinhsmith/ce-rom/contents/ce.rom
+            https://api.github.com/repos/gavinhsmith/ce-rom/contents/ti-84ce.rom
           # titrmlib needs graphx/keypadc/fileioc on the calculator.
           curl -sSLo "$RUNNER_TEMP/clibs.8xg" \
             https://github.com/CE-Programming/libraries/releases/download/v15.0/clibs.8xg
