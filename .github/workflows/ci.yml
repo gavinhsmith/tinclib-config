@@ -43,20 +43,28 @@ jobs:
 
       - name: Test
         env:
-          CE_ROM_BASE64: ${{ secrets.CE_ROM_BASE64 }}
+          # Read-only token for the private repo holding the ROM (too big for a secret).
+          CE_ROM_TOKEN: ${{ secrets.CE_ROM_TOKEN }}
         run: |
-          if [ -z "$CE_ROM_BASE64" ]; then
-            echo "::warning::CE_ROM_BASE64 secret not set; skipping autotests"
+          if [ -z "$CE_ROM_TOKEN" ]; then
+            echo "::warning::CE_ROM_TOKEN secret not set; skipping autotests"
             exit 0
           fi
-          echo "$CE_ROM_BASE64" | base64 -d > "$RUNNER_TEMP/ce.rom"
-          # titrmlib needs graphx/keypadc/fileioc on the calculator.
-          curl -sSLo "$RUNNER_TEMP/clibs.8xg" \
-            https://github.com/CE-Programming/libraries/releases/download/v15.0/clibs.8xg
-          export AUTOTESTER_ROM="$RUNNER_TEMP/ce.rom"
-          export AUTOTESTER_LIBS_GROUP="$RUNNER_TEMP/clibs.8xg"
-          make test
-          cemu-autotester tests/relaunch/autotest.json
+          curl -fsSLo "$RUNNER_TEMP/ce.rom" \
+            -H "Authorization: Bearer $CE_ROM_TOKEN" \
+            -H "Accept: application/vnd.github.raw" \
+            https://api.github.com/repos/gavinhsmith/ce-rom/contents/ti-84ce.rom
+          # The ROM is arTIfiCE-jailbroken with clibs installed; autotest.py
+          # launches through AsmHook2 since OS 5.5+ has no Asm(.
+          AUTOTESTER_ROM="$RUNNER_TEMP/ce.rom" \
+            python3 tests/autotest.py autotest.json tests/relaunch/autotest.json
+
+      - name: Upload failing screens
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: autotest-screens
+          path: tests/build/*/*.png
 
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')

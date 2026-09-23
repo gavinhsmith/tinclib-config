@@ -45,19 +45,28 @@ make -C tests SANITIZE=  # toolchains without sanitizers (e.g. MinGW)
 ```
 
 Emulator tests run in CEmu via `cemu-autotester`, which ships with the toolchain.
-You need a TI-84 Plus CE ROM dump (not included; it's copyrighted) and
-`clibs.8xg` from the [libraries release](https://github.com/CE-Programming/libraries/releases):
+You need a TI-84 Plus CE ROM dump (not included; it's copyrighted) with the
+[CE C libraries](https://github.com/CE-Programming/libraries/releases) installed,
+or set `AUTOTESTER_LIBS_GROUP` to `clibs.8xg`:
 ```sh
-export AUTOTESTER_ROM=/path/to/ce.rom AUTOTESTER_LIBS_GROUP=/path/to/clibs.8xg
-make test                                  # autotest.json: menu draws, [clear] exits
-cemu-autotester tests/relaunch/autotest.json   # handoff -> os_RunPrgm -> TSTRET
+make && make relaunch
+AUTOTESTER_ROM=/path/to/ce.rom python tests/autotest.py autotest.json tests/relaunch/autotest.json
 ```
-The TINCLIBC screen CRCs are still `00000000` placeholders. Run each test once,
-check the screen, and copy the CRC the autotester reports into `expected_CRCs`.
+- `autotest.json`: the menu draws and `[clear]` exits.
+- `tests/relaunch/autotest.json`: handoff → `os_RunPrgm` → TSTRET, which
+  checks that the result came back for its nonce.
+
+`tests/autotest.py` launches through AsmHook2 on arTIfiCE-jailbroken ROMs
+(OS 5.5+ has no `Asm(`), reusing titrmlib's runner. Failing screens are saved
+as PNGs under `tests/build/`. To re-record a CRC after a UI change, check the
+PNG, then copy the CRC the autotester reports into `expected_CRCs`.
 
 ## CI/CD
 `.github/workflows/ci.yml` runs the host tests, then builds TINCLIBC and the
 relaunch test.
-- **Emulator tests** run only when the `CE_ROM_BASE64` repo secret is set
-  (`base64 -w0 ce.rom`). Otherwise they're skipped with a warning.
+- **Emulator tests** run only when the `CE_ROM_TOKEN` repo secret is set.
+  Otherwise they're skipped with a warning. The ROM is ~4 MB, far over the
+  48 KB secret limit, so it lives as `ti-84ce.rom` in the private repo
+  `gavinhsmith/ce-rom`. `CE_ROM_TOKEN` is a fine-grained PAT with read-only
+  *Contents* access to that one repo.
 - **Releases**: push a `v*` tag to publish a GitHub release with `TINCLIBC.8xp` attached.
