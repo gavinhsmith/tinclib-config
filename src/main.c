@@ -11,6 +11,7 @@
 
 #define HND_NAME "TINCHND"
 #define TEST_URL "http://example.com/"
+#define COLOR_GREY 0xB5 /* graphx default palette */
 
 enum { M_STATUS, M_TEST, M_TLS, M_ABOUT };
 static const char *const menu_items[] = {
@@ -20,12 +21,13 @@ static const char *const slot_actions[] = { "Set network", "Forget", "Back" };
 
 static term_ctx_t *ctx;
 static term_panel_t *menu, *slots, *detail, *status;
-static term_panel_t *dlg, *dlg_list, *f_ssid_p, *f_pass_p, *f_hint, *save_btn;
+static term_panel_t *dlg, *dlg_list, *f_ssid_p, *f_pass_p, *f_hint, *chk_hidden,
+                    *save_btn, *ok_btn;
 
 static tinc_err_t link_err = TINC_ERR_NOT_INIT;
 static admin_status_t st;
-static admin_ssids_t ssids;
-static char slot_rows[TINC_WIFI_SLOTS][TINC_SSID_MAX + 16];
+static admin_slots_t sl;
+static char slot_rows[TINC_WIFI_SLOTS][TINC_SSID_MAX + 24];
 static const char *slot_items[TINC_WIFI_SLOTS];
 static uint8_t cur_slot;
 static bool started, testing, test_ok;
@@ -122,22 +124,31 @@ static void refresh(void)
     if (link_err == TINC_OK)
         link_err = admin_status(&st);
     if (link_err == TINC_OK)
-        link_err = admin_list(ssids);
-    if (link_err != TINC_OK)
-        memset(ssids, 0, sizeof ssids);
+        link_err = admin_list(&sl);
+    if (link_err != TINC_OK) {
+        memset(&sl, 0, sizeof sl);
+        st.wifi_locked = false;
+    }
 
     for (i = 0; i < TINC_WIFI_SLOTS; i++) {
         bool on = link_err == TINC_OK && st.wifi_state == TINC_WIFI_CONNECTED &&
                   st.slot == i;
-        if (!ssids[i][0])
+        const char *hid = sl.wflags[i] & TINC_WF_HIDDEN ? " (hidden)" : "";
+        if (!sl.ssid[i][0])
             snprintf(slot_rows[i], sizeof slot_rows[i], "%u (empty)", i + 1);
         else if (on)
-            snprintf(slot_rows[i], sizeof slot_rows[i], "%u %s %s%d", i + 1,
-                     ssids[i], bars(st.rssi), st.rssi);
+            snprintf(slot_rows[i], sizeof slot_rows[i], "%u %s%s %s%d", i + 1,
+                     sl.ssid[i], hid, bars(st.rssi), st.rssi);
         else
-            snprintf(slot_rows[i], sizeof slot_rows[i], "%u %s", i + 1, ssids[i]);
+            snprintf(slot_rows[i], sizeof slot_rows[i], "%u %s%s", i + 1,
+                     sl.ssid[i], hid);
         slot_items[i] = slot_rows[i];
     }
+    /* Locked on the board: the list stays readable but greyed out. */
+    term_panel_set_colors(slots, st.wifi_locked ? COLOR_GREY : TERM_COLOR_WHITE,
+                          TERM_COLOR_BLACK);
+    term_panel_set_title(slots, st.wifi_locked ? "Saved networks (locked)"
+                                               : "Saved networks");
     term_list_set_items(slots, slot_items, TINC_WIFI_SLOTS);
     show_detail(term_list_selected(menu));
 }
@@ -157,12 +168,20 @@ static void show_detail(int item)
     term_text_clear(detail);
     switch (item) {
     case M_STATUS:
+        if (link_err == TINC_ERR_VERSION) {
+            term_text_appendf(detail, "The board's firmware speaks a different "
+                              "protocol. Update it to protocol %u.%u, then "
+                              "[enter] to retry.", TINC_PROTO_MAJOR, TINC_PROTO_MINOR);
+            break;
+        }
         if (link_err != TINC_OK) {
             term_text_appendf(detail, "No board: %s.\n\nPlug in the ESP board, "
                               "then [enter] to retry.", tinc_errString(link_err));
             break;
         }
         term_text_appendf(detail, "Wi-Fi: %s\n", wifi_name(st.wifi_state));
+        if (st.wifi_locked)
+            term_text_append(detail, "Settings: locked by the board\n");
         if (st.wifi_state == TINC_WIFI_CONNECTED)
             term_text_appendf(detail, "Slot %u  %s %d dBm\nIP %u.%u.%u.%u\n",
                               st.slot + 1, bars(st.rssi), st.rssi,
@@ -247,10 +266,28 @@ static void close_dlg(void)
     if (dlg) {
         term_overlay_close(dlg);
         dlg = NULL;
-        dlg_list = f_ssid_p = f_pass_p = save_btn = NULL;
+        dlg_list = f_ssid_p = f_pass_p = chk_hidden = save_btn = ok_btn = NULL;
         wipe_fields();
     }
     term_focus(ctx, slots);
+}
+
+/* The board has Wi-Fi locked (firmware build flag or switch, e.g. the PC
+ * build, which only uses the PC's connection); nothing here can unlock it. */
+static void open_locked_notice(void)
+{
+    term_panel_t *text;
+
+    dlg = term_overlay_open_centered(ctx, 36, 9);
+    term_panel_set_border(dlg, true);
+    term_panel_set_title(dlg, "Wi-Fi locked");
+    text = term_split(dlg, TERM_VERTICAL, TERM_FILL);
+    term_make_text(text, "This board doesn't allow changing its Wi-Fi "
+                   "networks. It's set on the board itself (firmware or a "
+                   "switch), not here.");
+    ok_btn = term_split(dlg, TERM_VERTICAL, TERM_FIXED(1));
+    term_make_button(ok_btn, "OK");
+    term_focus(ctx, ok_btn);
 }
 
 static void open_actions(uint8_t slot)
@@ -286,7 +323,7 @@ static void open_form(void)
 
     term_overlay_close(dlg);
     wipe_fields();
-    dlg = term_overlay_open_centered(ctx, 40, 9);
+    dlg = term_overlay_open_centered(ctx, 40, 10);
     term_panel_set_border(dlg, true);
     snprintf(title, sizeof title, "Slot %u", cur_slot + 1);
     term_panel_set_title(dlg, title);
@@ -294,6 +331,8 @@ static void open_form(void)
     f_ssid_p = field(dlg, &f_ssid);
     label(dlg, "Password (empty = open):");
     f_pass_p = field(dlg, &f_pass);
+    chk_hidden = term_split(dlg, TERM_VERTICAL, TERM_FIXED(1));
+    term_make_checkbox(chk_hidden, "Hidden network (not broadcast)", false);
     f_hint = label(dlg, "");
     save_btn = term_split(dlg, TERM_VERTICAL, TERM_FIXED(1));
     term_make_button(save_btn, "Save");
@@ -303,13 +342,13 @@ static void open_form(void)
 
 static void form_move(int dir)
 {
-    term_panel_t *order[] = { f_ssid_p, f_pass_p, save_btn };
+    term_panel_t *order[] = { f_ssid_p, f_pass_p, chk_hidden, save_btn };
     term_panel_t *cur = term_focused(ctx);
     int i;
 
-    for (i = 0; i < 3 && order[i] != cur; i++)
+    for (i = 0; i < 4 && order[i] != cur; i++)
         ;
-    i = (i + dir + 3) % 3;
+    i = (i + dir + 4) % 4;
     term_focus(ctx, order[i]);
     form_draw();
 }
@@ -323,7 +362,8 @@ static void form_save(void)
         return;
     }
     /* Keypad -> admin command -> board. Never stored, never shown again. */
-    e = admin_set(cur_slot, f_ssid.buf, f_pass.buf);
+    e = admin_set(cur_slot, f_ssid.buf, f_pass.buf,
+                  term_checkbox_checked(chk_hidden) ? TINC_WF_HIDDEN : 0);
     close_dlg();
     snprintf(msg, sizeof msg, e == TINC_OK ? "Saved slot %u; joining..."
              : "Slot %u not saved: %s", cur_slot + 1, tinc_errString(e));
@@ -360,8 +400,12 @@ static bool on_event(term_ctx_t *c, const term_event_t *ev, void *state)
         } else if (src == menu && ev->value == M_TEST) {
             test_start();
         } else if (src == slots) {
-            if (link_err == TINC_OK)
+            if (link_err == TINC_OK && st.wifi_locked)
+                open_locked_notice();
+            else if (link_err == TINC_OK)
                 open_actions((uint8_t)ev->value);
+        } else if (src == ok_btn) {
+            close_dlg();
         } else if (src == dlg_list) {
             if (ev->value == 0) {
                 open_form();

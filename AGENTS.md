@@ -16,14 +16,14 @@ pinned dependency for the admin message definitions.
 ## Project status
 
 Update this section when something lands or the release state changes.
-**As of 2026-09-23** (`main` after PR #3). No tags or releases yet.
+**As of 2026-09-23** (protocol v0.2.0). No tags or releases yet.
 
 **Dependencies** (git submodules under `lib/`):
 
 | Submodule | Pin |
 |---|---|
-| `tinclib` | `phase-1` @ `28c2a3a` (its v0.1.0 PR isn't merged or tagged yet; switch to the tag once it exists) |
-| `tinclib-protocol` | v0.1.0 |
+| `tinclib` | `phase-2` @ `5f75687` (protocol v0.2.0; not merged or tagged yet; switch to its tag once it exists) |
+| `tinclib-protocol` | v0.2.0 |
 | `titrmlib` | v0.2.0 |
 
 tinclib has its own nested copy of the protocol at
@@ -34,8 +34,23 @@ together.
 **Working:**
 - Talks to the board through tinclib:
   - status screen (Wi-Fi state, connected slot, RSSI, IP)
-  - the 3 saved slots, with set (SSID + password) and forget
+  - the 3 saved slots, with set (SSID + password + a hidden-network
+    checkbox, sent as `TINC_WF_HIDDEN`) and forget. Hidden slots are marked
+    "(hidden)" in the list.
   - connection test: Wi-Fi, then one HTTP GET to `http://example.com/`
+- **Wi-Fi lock (0.2):** when STATUS reports `TINC_STATUSF_WIFI_LOCKED`,
+  TINCLIBC treats it as "the board won't change profiles". The native PC
+  build of the firmware uses this, since it can only use the PC's own
+  connection.
+  - The slot list is greyed out (palette index 0xB5) and titled
+    "Saved networks (locked)", and the status panel says so.
+  - Selecting a slot opens a "Wi-Fi locked" notice instead of the
+    set/forget menu.
+  - The lock is only ever set on the board (build flag or switch), never
+    from here, so there's no unlock path to add.
+  - If the lock appears between a refresh and a save, WIFI_SET/FORGET
+    return `ERR_LOCKED`, shown as tinclib's "Wi-Fi settings are locked",
+    and the next refresh greys the list.
 - Handoff: TINCHND is parsed, and the result is written back with the
   nonce echo. The layout is checked against tinclib's real code in
   `tests/test_interop.c`.
@@ -45,11 +60,22 @@ together.
   see the handoff rules below. `tests/handoff` (CEmu) is red in CI until
   this is fixed in CEdev's `os_RunPrgm` or in tinclib. That's expected: the
   user chose to leave it failing visibly.
-- **Protocol 0.1 has only WIFI_LIST/SET/FORGET as admin commands.** Scan,
-  the hidden flag, connect-now, the insecure-TLS toggle
-  (`ERR_INSECURE_DISABLED` doesn't exist yet either), CA bundle updates,
-  firmware info, HTTPS and time sync all need `tinclib-protocol` (and the
-  firmware) first. The UI shows these as "not in protocol 0.1".
+- **Protocol 0.2 has only WIFI_LIST/SET/FORGET as admin commands.** Scan,
+  connect-now, the insecure-TLS toggle (`ERR_INSECURE_DISABLED` doesn't
+  exist yet either), CA bundle updates, firmware info, HTTPS and time sync
+  all need `tinclib-protocol` (and the firmware) first. The UI shows these
+  as "not in protocol 0.2".
+- **No 0.2 firmware yet.** `tinclib-firmware` `main` still pins protocol
+  v0.1.0. Pre-1.0, HELLO needs an exact MAJOR.MINOR match, so a 0.1 board
+  answers `ERR_VERSION`, and the status screen says to update the firmware.
+- **Real hardware:** tinclib's AGENTS.md reports that srldrvce supports only
+  CDC, FTDI and PL2303 USB-serial bridges. CP210x and CH340 boards (the
+  common ESP8266 dev boards) aren't seen by the calculator. That's a
+  hardware decision for the user, not something to fix here.
+- **Connect order:** the UI says the board picks the strongest saved
+  network. Protocol 0.2's `WIFI_SET` comment says "first reachable slot,
+  0 -> 2" instead. The two design docs disagree, so check with the user
+  before changing either.
 - **RSSI only for the connected slot:** STATUS carries RSSI for the current
   connection only, so other saved slots can't show signal strength until
   scan exists.
@@ -199,7 +225,7 @@ Rules:
 - Off by default. This is the **only** place in the whole system where it
   can be turned on — no per-app or per-request-only override exists
   (to be enforced protocol-side via `ERR_INSECURE_DISABLED`, which
-  `tinclib-protocol` v0.1.0 doesn't define yet; nor is there a toggle
+  `tinclib-protocol` v0.2.0 doesn't define yet; nor is there a toggle
   command). Do not add any other path to enable it.
 - The UI here should make clear this is a global, security-relevant
   setting, not a per-connection convenience flag.
