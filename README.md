@@ -4,12 +4,18 @@
 (Wi-Fi slots, the global insecure-TLS toggle) and is where apps hand off
 to when they need setup. See [AGENTS.md](AGENTS.md) for the design rules.
 
-Status: talks to the board through `tinclib`.
+Status: talks to the board through `tinclib`, on protocol v0.2.0.
 - Status screen: Wi-Fi state, slot, signal (RSSI) and IP.
-- Saved networks: the 3 slots, with set (SSID + masked password) and forget.
+- Saved networks: the 3 slots, with set (SSID, masked password, hidden
+  network) and forget.
+- Wi-Fi lock: if the board locks its Wi-Fi profiles (for example the
+  native PC build of the firmware), the slot list is greyed out, and
+  selecting a slot shows a notice instead.
 - Connection test: Wi-Fi plus one HTTP GET.
-- Not in protocol 0.1 yet: scan, hidden networks, connect-now, the
-  insecure-TLS toggle, and HTTPS/time sync.
+- Not in protocol 0.2 yet: scan, connect-now, the insecure-TLS toggle, and
+  HTTPS/time sync.
+- Needs 0.2 firmware: a 0.1 board fails the handshake, and the status screen
+  says to update the firmware.
 - Handoff return is blocked: see [Handoff](#handoff-tinchnd-appvar).
 
 ## Setup
@@ -18,8 +24,8 @@ Dependencies are pinned git submodules under `lib/`:
 
 | Submodule | Tag |
 |---|---|
-| [tinclib](https://github.com/gavinhsmith/tinclib) | `phase-1` @ `28c2a3a` (v0.1.0 not tagged yet) |
-| [tinclib-protocol](https://github.com/gavinhsmith/tinclib-protocol) | v0.1.0 |
+| [tinclib](https://github.com/gavinhsmith/tinclib) | `phase-2` @ `5f75687` (v0.2.0 not tagged yet) |
+| [tinclib-protocol](https://github.com/gavinhsmith/tinclib-protocol) | v0.2.0 |
 | [titrmlib](https://github.com/gavinhsmith/titrmlib) | v0.2.0 |
 
 tinclib has its own nested copy of the protocol, which isn't checked out or

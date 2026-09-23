@@ -9,6 +9,7 @@
 #ifndef ADMIN_H
 #define ADMIN_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include "tinclib.h"
 
@@ -17,14 +18,19 @@ typedef struct {
     uint8_t slot;        /* connected slot, TINC_SLOT_NONE if none */
     int8_t rssi;         /* dBm, while connected */
     uint8_t ip[4];
+    bool wifi_locked;    /* the board refuses WIFI_SET/FORGET (ERR_LOCKED) */
 } admin_status_t;
 
-typedef char admin_ssids_t[TINC_WIFI_SLOTS][TINC_SSID_MAX + 1]; /* "" = empty slot */
+typedef struct {
+    char ssid[TINC_WIFI_SLOTS][TINC_SSID_MAX + 1]; /* "" = empty slot */
+    uint8_t wflags[TINC_WIFI_SLOTS];               /* TINC_WF_* */
+} admin_slots_t;
 
 tinc_err_t admin_status(admin_status_t *st);
-tinc_err_t admin_list(admin_ssids_t ssids);
-/* ssid 1..TINC_SSID_MAX chars, pass 0..TINC_PASS_MAX (0 = open network). */
-tinc_err_t admin_set(uint8_t slot, const char *ssid, const char *pass);
+tinc_err_t admin_list(admin_slots_t *slots);
+/* ssid 1..TINC_SSID_MAX chars, pass 0..TINC_PASS_MAX (0 = open network),
+ * wflags TINC_WF_*. TINC_ERR_LOCKED while the board has Wi-Fi locked. */
+tinc_err_t admin_set(uint8_t slot, const char *ssid, const char *pass, uint8_t wflags);
 tinc_err_t admin_forget(uint8_t slot);
 
 #endif /* ADMIN_H */
