@@ -1,6 +1,8 @@
 {
   "transfer_files": [
-    "bin/TINCLIBC.8xp"
+    "../../bin/TINCLIBC.8xp",
+    "bin/TSTRET.8xp",
+    "bin/TINCHND.8xv"
   ],
   "target": {
     "name": "TINCLIBC",
@@ -14,18 +16,18 @@
   ],
   "hashes": {
     "1": {
-      "description": "Main menu drawn (standalone, no handoff). Placeholder: record on first run",
+      "description": "TINCLIBC main menu with the fixture's hint in the status bar. Placeholder: record on first run",
       "timeout": 5000,
       "start": "vram_start",
       "size": "vram_8_size",
       "expected_CRCs": [ "00000000" ]
     },
     "2": {
-      "description": "Back on the home screen",
+      "description": "TSTRET shows RETURNED CANCELLED: os_RunPrgm chained and the result matched the nonce. Placeholder: record on first run",
       "timeout": 5000,
       "start": "vram_start",
       "size": "vram_16_size",
-      "expected_CRCs": [ "FFAF89BA", "101734A5", "9DA19F44", "A32840C8", "349F4775" ]
+      "expected_CRCs": [ "00000000" ]
     }
   }
 }

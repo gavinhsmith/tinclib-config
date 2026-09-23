@@ -7,19 +7,34 @@ on:
   pull_request:
 
 jobs:
+  host-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Host unit tests (ASan + UBSan)
+        run: make -C tests CC=gcc
+
   build:
+    needs: host-test
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - uses: gavinhsmith/setup-ti84-ce-toolchain@v1.0.0
         with:
           version: v15.0
 
       - name: Build
-        run: make
+        run: |
+          make
+          make relaunch
 
       - uses: actions/upload-artifact@v4
         with:
@@ -35,10 +50,16 @@ jobs:
             exit 0
           fi
           echo "$CE_ROM_BASE64" | base64 -d > "$RUNNER_TEMP/ce.rom"
-          AUTOTESTER_ROM="$RUNNER_TEMP/ce.rom" make test
+          # titrmlib needs graphx/keypadc/fileioc on the calculator.
+          curl -sSLo "$RUNNER_TEMP/clibs.8xg" \
+            https://github.com/CE-Programming/libraries/releases/download/v15.0/clibs.8xg
+          export AUTOTESTER_ROM="$RUNNER_TEMP/ce.rom"
+          export AUTOTESTER_LIBS_GROUP="$RUNNER_TEMP/clibs.8xg"
+          make test
+          cemu-autotester tests/relaunch/autotest.json
 
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" bin/*.8xp --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" bin/TINCLIBC.8xp --generate-notes
