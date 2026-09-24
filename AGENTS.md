@@ -29,7 +29,7 @@ from a build of the tag. `v0.4.0` to `v0.4.2` have no release.
 |---|---|
 | `tinclib` | v0.6.0 |
 | `tinclib-protocol` | v0.6 |
-| `titrmlib` | v0.3.0 |
+| `titrmlib` | v0.4.1 |
 
 tinclib has its own nested copy of the protocol at
 `lib/tinclib/external/tinclib-protocol`. It isn't checked out or built here,
@@ -92,8 +92,9 @@ branch contains.
   `tests/test_interop.c`.
 
 **Blocked or missing** (flag, don't work around):
-- **Handoff return crashes** when TINCLIBC is bigger than the calling app;
-  see the handoff rules below. `tests/handoff` (CEmu) is red in CI until
+- **Handoff crashes** when TINCLIBC is bigger than the calling app; see
+  the handoff rules below. Since TINCLIBC dropped CEdev's printf it crashes
+  on launch instead of on return. `tests/handoff` (CEmu) is red in CI until
   this is fixed in CEdev's `os_RunPrgm` or in tinclib. That's expected: the
   user chose to leave it failing visibly.
 - **Protocol 0.6 has only WIFI_GET/SET/FORGET as admin commands.** Scan,
@@ -112,9 +113,11 @@ branch contains.
   libraries (USBDRVCE, GRAPHX, SRLDRVCE, FILEIOC, KEYPADC) next to it. Static
   data doesn't count here: it lives in CEdev's fixed 60 KB area. The exact
   minimum isn't measured; CEmu's autotests start from a near-empty RAM, so
-  they don't catch this. Shrinking it is up to titrmlib (the bundled printf,
-  ~6 KB, needs `vsnprintf` off the OS's `sprintf` first) or tinclib (unused
-  upload code). The user decided not to change either for now.
+  they don't catch this. With titrmlib 0.4.1 it's 36.5 KB: `fmt()` in
+  `src/main.c` formats through titrmlib's own `term_vformat` (from
+  `titrm_internal.h`), so CEdev's printf isn't linked. Don't add
+  `snprintf` or `sprintf` back. What's left to cut is in tinclib (unused
+  upload code). Not yet tried on the calculator that failed.
 - **Real hardware:** tinclib's AGENTS.md reports that srldrvce supports only
   CDC, FTDI and PL2303 USB-serial bridges. CP210x and CH340 boards (the
   common ESP8266 dev boards) aren't seen by the calculator. That's a
@@ -233,13 +236,18 @@ Rules:
   in CEmu.
 - **Known blocker (not fixed here):** in CEmu (OS 5.8.5), returning through
   that callback crashes the calculator (RAM Cleared) when the called
-  program is bigger than the calling app. TINCLIBC (~40 KB) is bigger than
+  program is bigger than the calling app. TINCLIBC (~37 KB) is bigger than
   most apps. It's in CEdev's `os_RunPrgm` return path or the OS, underneath
   tinclib's handoff design: fix it there, not with a workaround here.
   - **Measured:** with a 5.4 KB caller, a 2.7 KB stand-in TINCLIBC returns
     and one of 5.7 KB or more crashes.
   - **Confirmed:** padding the caller to 55 KB makes the real TINCLIBC
-    round-trip correctly.
+    round-trip correctly (still true at 36.5 KB).
+  - **Layout-sensitive:** with titrmlib 0.4.1 and no CEdev printf,
+    TINCLIBC crashes before its first frame when THANDOFF launches it;
+    linking `snprintf` back in (never called) moves the crash to the
+    return. Padding with 7.5 KB of rodata doesn't. Run directly, it starts
+    fine.
   - **Ruled out:** graphx, keypad scanning, run time, static data size and
     cursor-image RAM. `sprintf` only looked guilty because it made the
     stand-in bigger.
