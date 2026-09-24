@@ -9,6 +9,7 @@
 #include "admin.h"
 #include "handoff.h"
 
+#define TINCLIBC_VERSION "0.4.2" /* bump with each v* tag */
 #define HND_NAME "TINCHND"
 /* hello.txt in this repo: a known body to print back */
 #define TEST_URL "https://raw.githubusercontent.com/gavinhsmith/tinclib-config/refs/heads/main/hello.txt"
@@ -24,7 +25,7 @@ static const char *const menu_items[] = {
 static const char *const slot_actions[] = { "Set network", "Forget", "Back" };
 
 static term_ctx_t *ctx;
-static term_panel_t *menu, *slots, *detail, *status;
+static term_panel_t *menu, *slots, *detail, *credit, *status;
 static term_panel_t *dlg, *dlg_list, *f_ssid_p, *f_pass_p, *f_hint, *chk_hidden,
                     *save_btn, *ok_btn;
 
@@ -181,6 +182,7 @@ static const char *wifi_name(uint8_t s)
 static void show_detail(int item)
 {
     term_text_clear(detail);
+    term_panel_show(credit, item == M_ABOUT);
     switch (item) {
     case M_STATUS:
         if (link_err == TINC_ERR_VERSION) {
@@ -218,8 +220,11 @@ static void show_detail(int item)
                           TINC_PROTO_MAJOR, TINC_PROTO_MINOR);
         break;
     default:
-        term_text_appendf(detail, "TINCLIBC\n\nProtocol %u.%u\ntinclib %s\n"
-                          "titrmlib %s", TINC_PROTO_MAJOR, TINC_PROTO_MINOR,
+        /* TODO: firmware version and board name once the protocol reports them */
+        term_text_appendf(detail, "tinclib config v" TINCLIBC_VERSION "\n\n"
+                          "Protocol v%u.%u\ntinclib v%s\n"
+                          "Firmware v0.0.0 (dummy board)\ntitrmlib v%s",
+                          TINC_PROTO_MAJOR, TINC_PROTO_MINOR,
                           TINC_VERSION, TITRM_VERSION);
         break;
     }
@@ -537,7 +542,7 @@ int main(void)
     static hnd_request_t req;
     uint16_t len = read_handoff(buf);
     bool handoff = hnd_parse(buf, len, &req);
-    term_panel_t *body, *right;
+    term_panel_t *body, *right, *box, *row, *heart;
 
     ctx = term_init();
     body = term_split(term_root(ctx), TERM_VERTICAL, TERM_FILL);
@@ -553,9 +558,22 @@ int main(void)
     term_panel_set_border(slots, true);
     term_panel_set_title(slots, "Saved networks");
     term_make_list(slots, slot_items, 0);
-    detail = term_split(right, TERM_VERTICAL, TERM_FILL);
-    term_panel_set_border(detail, true);
+    box = term_split(right, TERM_VERTICAL, TERM_FILL);
+    term_panel_set_border(box, true);
+    detail = term_split(box, TERM_VERTICAL, TERM_FILL);
     term_make_text(detail, "Connecting to the board...");
+    /* About's credit: its own panels, since a text widget has one color and
+     * the heart (code page 437 0x03) is red. Shown by show_detail(). */
+    credit = term_split(box, TERM_VERTICAL, TERM_FIXED(2));
+    row = term_split(credit, TERM_VERTICAL, TERM_FIXED(1));
+    term_make_text(term_split(row, TERM_HORIZONTAL, TERM_FIXED(8)), "Made w/ ");
+    heart = term_split(row, TERM_HORIZONTAL, TERM_FIXED(1));
+    term_panel_set_colors(heart, TERM_COLOR_RED, TERM_COLOR_BLACK);
+    term_make_text(heart, "\x03");
+    term_make_text(term_split(row, TERM_HORIZONTAL, TERM_FILL), " by");
+    term_make_text(term_split(credit, TERM_VERTICAL, TERM_FIXED(1)),
+                   "github.com/gavinhsmith");
+    term_panel_show(credit, false);
 
     term_panel_set_attr(status, TERM_ATTR_REVERSE);
     term_make_text(status, handoff && req.hint[0] ? req.hint
