@@ -106,6 +106,15 @@ branch contains.
   (`f1dd7b0`). Pre-1.0, HELLO needs an exact MAJOR.MINOR match, so an older
   board answers `ERR_VERSION`, and the status screen says to update the
   firmware.
+- **Startup RAM:** v0.6.0 (42.5 KB) failed to start on a real calculator
+  with 63 KB of RAM free, although it was archived, and started after a RAM
+  reset. The program is copied into RAM to run, and LibLoad loads its five
+  libraries (USBDRVCE, GRAPHX, SRLDRVCE, FILEIOC, KEYPADC) next to it. Static
+  data doesn't count here: it lives in CEdev's fixed 60 KB area. The exact
+  minimum isn't measured; CEmu's autotests start from a near-empty RAM, so
+  they don't catch this. Shrinking it is up to titrmlib (the bundled printf,
+  ~6 KB, needs `vsnprintf` off the OS's `sprintf` first) or tinclib (unused
+  upload code). The user decided not to change either for now.
 - **Real hardware:** tinclib's AGENTS.md reports that srldrvce supports only
   CDC, FTDI and PL2303 USB-serial bridges. CP210x and CH340 boards (the
   common ESP8266 dev boards) aren't seen by the calculator. That's a

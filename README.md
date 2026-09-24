@@ -21,6 +21,12 @@ Status: talks to the board through `tinclib`, on protocol v0.6.
 - Needs 0.6 firmware: an older board fails the handshake, and the status
   screen says to update the firmware.
 - Handoff return is blocked: see [Handoff](#handoff-tinchnd-appvar).
+- Needs a lot of free RAM to start, even when archived: the program
+  (42.5 KB in v0.6.0) is copied into RAM, and LibLoad loads USBDRVCE,
+  GRAPHX, SRLDRVCE, FILEIOC and KEYPADC next to it. 63 KB free wasn't
+  enough on a real TI-84 Plus CE (`ERR: MEMORY`); after a RAM reset it
+  started. The exact minimum isn't measured. An app that opens TINCLIBC
+  needs this much on top of its own RAM.
 
 ## Setup
 Install the [CE C toolchain](https://ce-programming.github.io/toolchain/) (v15.0) and put `CEdev/bin` on your `PATH`.
