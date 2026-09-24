@@ -17,7 +17,7 @@ pinned dependency for the admin message definitions.
 ## Project status
 
 Update this section when something lands or the release state changes.
-**As of 2026-09-23** (protocol v0.4.0). Latest tag `v0.4.2` (`efe5346`). No
+**As of 2026-09-23** (protocol v0.6). Latest tag `v0.4.2` (`efe5346`). No
 GitHub release for `v0.4.0`, `v0.4.1` or `v0.4.2`: each tag's CI run failed
 on the handoff test, so the Release step was skipped (see below).
 
@@ -25,14 +25,17 @@ on the handoff test, so the Release step was skipped (see below).
 
 | Submodule | Pin |
 |---|---|
-| `tinclib` | v0.4.1 |
-| `tinclib-protocol` | v0.4.0 |
+| `tinclib` | v0.6.0 |
+| `tinclib-protocol` | v0.6 |
 | `titrmlib` | v0.3.0 |
 
 tinclib has its own nested copy of the protocol at
 `lib/tinclib/external/tinclib-protocol`. It isn't checked out or built here,
 and CI fails if its pin differs from `lib/tinclib-protocol`. Bump both
 together.
+
+The protocol tags `vMAJOR.MINOR` from 0.5 on (`v0.5`, `v0.6`); older
+versions are `v0.1.0`..`v0.4.0`.
 
 Upstream moved the protocol's `v0.2.0` tag (`9c21d6e` to `1c008bc`, same
 files, rewritten history). Always pin by tag and check the commit a tag
@@ -78,9 +81,10 @@ branch contains.
     and the next refresh greys the list.
 - About: the app version (`TINCLIBC_VERSION` in `src/main.c`), protocol,
   tinclib and titrmlib versions, and a "Made w/ ♥ by" credit (the heart is
-  its own red one-cell panel). The firmware line is a placeholder
-  (`v0.0.0 (dummy board)`) until the protocol reports firmware version and
-  board name.
+  its own red one-cell panel). The firmware line comes from INFO (0.5):
+  `admin_info()` asks for it on each refresh, like `admin_slot_count()`,
+  since tinclib doesn't wrap INFO. It's display only, so a bad reply only
+  blanks that line ("Firmware unknown").
 - Handoff: TINCHND is parsed, and the result is written back with the
   nonce echo. The layout is checked against tinclib's real code in
   `tests/test_interop.c`.
@@ -90,14 +94,14 @@ branch contains.
   see the handoff rules below. `tests/handoff` (CEmu) is red in CI until
   this is fixed in CEdev's `os_RunPrgm` or in tinclib. That's expected: the
   user chose to leave it failing visibly.
-- **Protocol 0.4 has only WIFI_GET/SET/FORGET as admin commands.** Scan,
-  connect-now, the insecure-TLS toggle (0.4 only reserves the `INSECURE`
-  request flag and `ERR_INSECURE_DISABLED` 0x0B), CA bundle updates and
-  firmware info all need `tinclib-protocol` (and the firmware) first. The
-  UI shows the toggle as "not in protocol 0.4". Time sync is the board's
+- **Protocol 0.6 has only WIFI_GET/SET/FORGET as admin commands.** Scan,
+  connect-now, the insecure-TLS toggle (0.6 only reserves the `INSECURE`
+  request flag and `ERR_INSECURE_DISABLED` 0x0B) and CA bundle updates all
+  need `tinclib-protocol` (and the firmware) first. The UI shows the toggle
+  as "not in protocol 0.6". Time sync is the board's
   own business (SNTP); the protocol only reports it as a STATUS flag.
-- **No 0.4 firmware yet.** `tinclib-firmware` `main` pins protocol 0.3
-  (`f1f123d`). Pre-1.0, HELLO needs an exact MAJOR.MINOR match, so an older
+- **No 0.6 firmware yet.** `tinclib-firmware` `main` pins protocol 0.4
+  (`f1dd7b0`). Pre-1.0, HELLO needs an exact MAJOR.MINOR match, so an older
   board answers `ERR_VERSION`, and the status screen says to update the
   firmware.
 - **Real hardware:** tinclib's AGENTS.md reports that srldrvce supports only
@@ -105,7 +109,7 @@ branch contains.
   common ESP8266 dev boards) aren't seen by the calculator. That's a
   hardware decision for the user, not something to fix here.
 - **Connect order:** the UI says the board picks the strongest saved
-  network. Protocol 0.4's `WIFI_SET` comment says "first reachable slot,
+  network. Protocol 0.6's `WIFI_SET` comment says "first reachable slot,
   0 -> wifi_slots-1" instead. The two design docs disagree, so check with the user
   before changing either.
 - **RSSI only for the connected slot:** STATUS carries RSSI for the current
@@ -260,7 +264,7 @@ Rules:
 - Off by default. This is the **only** place in the whole system where it
   can be turned on — no per-app or per-request-only override exists
   (to be enforced protocol-side via `ERR_INSECURE_DISABLED`, which
-  `tinclib-protocol` v0.4.0 only reserves; nor is there a toggle
+  `tinclib-protocol` v0.6 only reserves; nor is there a toggle
   command). Do not add any other path to enable it.
 - The UI here should make clear this is a global, security-relevant
   setting, not a per-connection convenience flag.
