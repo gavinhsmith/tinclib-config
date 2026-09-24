@@ -8,7 +8,7 @@
 #include "admin.h"
 #include "handoff.h"
 
-#define TINCLIBC_VERSION "0.6.0" /* bump with each v* tag */
+#define TINCLIBC_VERSION "0.6.1" /* bump with each v* tag */
 #define HND_NAME "TINCHND"
 /* hello.txt in this repo: a known body to print back */
 #define TEST_URL "https://raw.githubusercontent.com/gavinhsmith/tinclib-config/refs/heads/main/hello.txt"
