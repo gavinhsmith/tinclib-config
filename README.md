@@ -20,9 +20,9 @@ Status: talks to the board through `tinclib`, on protocol v0.6.
 - Not in protocol 0.6 yet: scan, connect-now, and the insecure-TLS toggle.
 - Needs 0.6 firmware: an older board fails the handshake, and the status
   screen says to update the firmware.
-- Handoff return is blocked: see [Handoff](#handoff-tinchnd-appvar).
+- Handoff is blocked: see [Handoff](#handoff-tinchnd-appvar).
 - Needs a lot of free RAM to start, even when archived: the program
-  (42.5 KB in v0.6.0) is copied into RAM, and LibLoad loads USBDRVCE,
+  (36.5 KB, 42.5 KB in v0.6.0) is copied into RAM, and LibLoad loads USBDRVCE,
   GRAPHX, SRLDRVCE, FILEIOC and KEYPADC next to it. 63 KB free wasn't
   enough on a real TI-84 Plus CE (`ERR: MEMORY`); after a RAM reset it
   started. The exact minimum isn't measured. An app that opens TINCLIBC
@@ -36,7 +36,7 @@ Dependencies are pinned git submodules under `lib/`:
 |---|---|
 | [tinclib](https://github.com/gavinhsmith/tinclib) | v0.6.0 |
 | [tinclib-protocol](https://github.com/gavinhsmith/tinclib-protocol) | v0.6 |
-| [titrmlib](https://github.com/gavinhsmith/titrmlib) | v0.3.0 |
+| [titrmlib](https://github.com/gavinhsmith/titrmlib) | v0.4.2 |
 
 tinclib has its own nested copy of the protocol, which isn't checked out or
 built here. CI fails if it pins a different commit than `lib/tinclib-protocol`.
@@ -71,9 +71,9 @@ The result is:
 - `FAILED` with the error code if there's no board
 - `CANCELLED` otherwise
 
-**Known blocker:** in CEmu (OS 5.8.5), that callback return crashes the
-calculator (RAM Cleared) when the called program is bigger than the caller.
-TINCLIBC is about 40 KB, so `tests/handoff` fails until this is fixed in
+**Known blocker:** in CEmu (OS 5.8.5), the handoff crashes the calculator
+(RAM Cleared) when the called program is bigger than the caller: on
+launch, or on the callback return. TINCLIBC is about 37 KB, so `tests/handoff` fails until this is fixed in
 tinclib or CEdev.
 
 ## Test

@@ -1,7 +1,6 @@
 /* TINCLIBC: board configuration (Wi-Fi slots, connection test) and the
  * landing point for app handoffs via the TINCHND appvar. See AGENTS.md. */
 
-#include <stdio.h>
 #include <string.h>
 #include <fileioc.h>
 #include "titrm.h"
@@ -150,12 +149,14 @@ static void refresh(void)
             break;
         hid = wflags & TINC_WF_HIDDEN ? " (hidden)" : "";
         if (!ssid[0])
-            snprintf(slot_rows[i], sizeof slot_rows[i], "%u (empty)", i + 1);
+            term_snprintf(slot_rows[i], sizeof slot_rows[i], "%u (empty)",
+                          i + 1);
         else if (on)
-            snprintf(slot_rows[i], sizeof slot_rows[i], "%u %s%s %s%d", i + 1,
-                     ssid, hid, bars(st.rssi), st.rssi);
+            term_snprintf(slot_rows[i], sizeof slot_rows[i], "%u %s%s %s%d",
+                          i + 1, ssid, hid, bars(st.rssi), st.rssi);
         else
-            snprintf(slot_rows[i], sizeof slot_rows[i], "%u %s%s", i + 1, ssid, hid);
+            term_snprintf(slot_rows[i], sizeof slot_rows[i], "%u %s%s",
+                          i + 1, ssid, hid);
         slot_items[i] = slot_rows[i];
     }
     if (link_err != TINC_OK) {
@@ -166,8 +167,8 @@ static void refresh(void)
     /* Locked on the board: the list stays readable but greyed out. */
     term_panel_set_colors(slots, st.wifi_locked ? COLOR_GREY : TERM_COLOR_WHITE,
                           TERM_COLOR_BLACK);
-    snprintf(slots_title, sizeof slots_title, "Saved networks (%u)%s", n_slots,
-             st.wifi_locked ? " locked" : "");
+    term_snprintf(slots_title, sizeof slots_title, "Saved networks (%u)%s",
+                  n_slots, st.wifi_locked ? " locked" : "");
     term_panel_set_title(slots, slots_title);
     term_list_set_items(slots, slot_items, n_slots);
     show_detail(term_list_selected(menu));
@@ -386,7 +387,7 @@ static void open_form(void)
     wipe_fields();
     dlg = term_overlay_open_centered(ctx, 40, 10);
     term_panel_set_border(dlg, true);
-    snprintf(title, sizeof title, "Slot %u", cur_slot + 1);
+    term_snprintf(title, sizeof title, "Slot %u", cur_slot + 1);
     term_panel_set_title(dlg, title);
     label(dlg, "Network name (SSID):");
     f_ssid_p = field(dlg, &f_ssid);
@@ -426,8 +427,8 @@ static void form_save(void)
     e = admin_set(cur_slot, f_ssid.buf, f_pass.buf,
                   term_checkbox_checked(chk_hidden) ? TINC_WF_HIDDEN : 0);
     close_dlg();
-    snprintf(msg, sizeof msg, e == TINC_OK ? "Saved slot %u; joining..."
-             : "Slot %u not saved: %s", cur_slot + 1, tinc_errString(e));
+    term_snprintf(msg, sizeof msg, e == TINC_OK ? "Saved slot %u; joining..."
+                  : "Slot %u not saved: %s", cur_slot + 1, tinc_errString(e));
     set_status(msg);
     refresh();
 }
