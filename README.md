@@ -22,7 +22,7 @@ Status: talks to the board through `tinclib`, on protocol v0.6.
   screen says to update the firmware.
 - Handoff is blocked: see [Handoff](#handoff-tinchnd-appvar).
 - Needs a lot of free RAM to start, even when archived: the program
-  (36.5 KB, 42.5 KB in v0.6.0) is copied into RAM, and LibLoad loads USBDRVCE,
+  (36.5 KB in v0.6.1, 42.5 KB in v0.6.0) is copied into RAM, and LibLoad loads USBDRVCE,
   GRAPHX, SRLDRVCE, FILEIOC and KEYPADC next to it. 63 KB free wasn't
   enough on a real TI-84 Plus CE (`ERR: MEMORY`); after a RAM reset it
   started. The exact minimum isn't measured. An app that opens TINCLIBC
@@ -116,4 +116,4 @@ tests. It then builds TINCLIBC and THANDOFF and runs the emulator tests.
 - **Releases**: push a `v*` tag to publish a GitHub release with `TINCLIBC.8xp` attached.
   The release only happens if the emulator tests pass, so none is published
   while the handoff test is failing (`v0.4.0` to `v0.4.2` have no release for this reason;
-  `v0.6.0`'s was created by hand).
+  `v0.6.0` and `v0.6.1` were released by hand).
