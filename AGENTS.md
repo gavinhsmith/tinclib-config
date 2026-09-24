@@ -29,7 +29,7 @@ from a build of the tag. `v0.4.0` to `v0.4.2` have no release.
 |---|---|
 | `tinclib` | v0.6.0 |
 | `tinclib-protocol` | v0.6 |
-| `titrmlib` | v0.4.1 |
+| `titrmlib` | v0.4.2 |
 
 tinclib has its own nested copy of the protocol at
 `lib/tinclib/external/tinclib-protocol`. It isn't checked out or built here,
@@ -113,9 +113,8 @@ branch contains.
   libraries (USBDRVCE, GRAPHX, SRLDRVCE, FILEIOC, KEYPADC) next to it. Static
   data doesn't count here: it lives in CEdev's fixed 60 KB area. The exact
   minimum isn't measured; CEmu's autotests start from a near-empty RAM, so
-  they don't catch this. With titrmlib 0.4.1 it's 36.5 KB: `fmt()` in
-  `src/main.c` formats through titrmlib's own `term_vformat` (from
-  `titrm_internal.h`), so CEdev's printf isn't linked. Don't add
+  they don't catch this. Now it's 36.5 KB: `src/main.c` formats with
+  titrmlib's `term_snprintf` (0.4.2), so CEdev's printf isn't linked. Don't add
   `snprintf` or `sprintf` back. What's left to cut is in tinclib (unused
   upload code). Not yet tried on the calculator that failed.
 - **Real hardware:** tinclib's AGENTS.md reports that srldrvce supports only
@@ -243,7 +242,7 @@ Rules:
     and one of 5.7 KB or more crashes.
   - **Confirmed:** padding the caller to 55 KB makes the real TINCLIBC
     round-trip correctly (still true at 36.5 KB).
-  - **Layout-sensitive:** with titrmlib 0.4.1 and no CEdev printf,
+  - **Layout-sensitive:** with titrmlib 0.4.1+ and no CEdev printf,
     TINCLIBC crashes before its first frame when THANDOFF launches it;
     linking `snprintf` back in (never called) moves the crash to the
     return. Padding with 7.5 KB of rodata doesn't. Run directly, it starts

@@ -36,7 +36,7 @@ Dependencies are pinned git submodules under `lib/`:
 |---|---|
 | [tinclib](https://github.com/gavinhsmith/tinclib) | v0.6.0 |
 | [tinclib-protocol](https://github.com/gavinhsmith/tinclib-protocol) | v0.6 |
-| [titrmlib](https://github.com/gavinhsmith/titrmlib) | v0.4.1 |
+| [titrmlib](https://github.com/gavinhsmith/titrmlib) | v0.4.2 |
 
 tinclib has its own nested copy of the protocol, which isn't checked out or
 built here. CI fails if it pins a different commit than `lib/tinclib-protocol`.

@@ -1,11 +1,9 @@
 /* TINCLIBC: board configuration (Wi-Fi slots, connection test) and the
  * landing point for app handoffs via the TINCHND appvar. See AGENTS.md. */
 
-#include <stdarg.h>
 #include <string.h>
 #include <fileioc.h>
 #include "titrm.h"
-#include "titrm_internal.h" /* term_vformat */
 #include "tinclib.h"
 #include "admin.h"
 #include "handoff.h"
@@ -45,28 +43,6 @@ static bool started, testing, test_ok;
 static char msg[64];
 static char test_body[64];
 static uint8_t test_len;
-
-/* snprintf through titrmlib's own formatter, so CEdev's printf (~6 KB of
- * program RAM) isn't linked. Always NUL-terminates; cuts off at `size`. */
-typedef struct { char *p, *end; } fmt_buf_t;
-
-static void fmt_out(void *dst, char c)
-{
-    fmt_buf_t *b = dst;
-    if (b->p < b->end)
-        *b->p++ = c;
-}
-
-static void fmt(char *buf, size_t size, const char *f, ...)
-{
-    fmt_buf_t b = { buf, buf + size - 1 };
-    va_list args;
-
-    va_start(args, f);
-    term_vformat(fmt_out, &b, f, args);
-    va_end(args);
-    *b.p = '\0';
-}
 
 /* ---- Text fields --------------------------------------------------------
  * titrmlib's input only types upper case and holds 48 chars; SSIDs and
@@ -173,12 +149,14 @@ static void refresh(void)
             break;
         hid = wflags & TINC_WF_HIDDEN ? " (hidden)" : "";
         if (!ssid[0])
-            fmt(slot_rows[i], sizeof slot_rows[i], "%u (empty)", i + 1);
+            term_snprintf(slot_rows[i], sizeof slot_rows[i], "%u (empty)",
+                          i + 1);
         else if (on)
-            fmt(slot_rows[i], sizeof slot_rows[i], "%u %s%s %s%d", i + 1,
-                ssid, hid, bars(st.rssi), st.rssi);
+            term_snprintf(slot_rows[i], sizeof slot_rows[i], "%u %s%s %s%d",
+                          i + 1, ssid, hid, bars(st.rssi), st.rssi);
         else
-            fmt(slot_rows[i], sizeof slot_rows[i], "%u %s%s", i + 1, ssid, hid);
+            term_snprintf(slot_rows[i], sizeof slot_rows[i], "%u %s%s",
+                          i + 1, ssid, hid);
         slot_items[i] = slot_rows[i];
     }
     if (link_err != TINC_OK) {
@@ -189,8 +167,8 @@ static void refresh(void)
     /* Locked on the board: the list stays readable but greyed out. */
     term_panel_set_colors(slots, st.wifi_locked ? COLOR_GREY : TERM_COLOR_WHITE,
                           TERM_COLOR_BLACK);
-    fmt(slots_title, sizeof slots_title, "Saved networks (%u)%s", n_slots,
-        st.wifi_locked ? " locked" : "");
+    term_snprintf(slots_title, sizeof slots_title, "Saved networks (%u)%s",
+                  n_slots, st.wifi_locked ? " locked" : "");
     term_panel_set_title(slots, slots_title);
     term_list_set_items(slots, slot_items, n_slots);
     show_detail(term_list_selected(menu));
@@ -409,7 +387,7 @@ static void open_form(void)
     wipe_fields();
     dlg = term_overlay_open_centered(ctx, 40, 10);
     term_panel_set_border(dlg, true);
-    fmt(title, sizeof title, "Slot %u", cur_slot + 1);
+    term_snprintf(title, sizeof title, "Slot %u", cur_slot + 1);
     term_panel_set_title(dlg, title);
     label(dlg, "Network name (SSID):");
     f_ssid_p = field(dlg, &f_ssid);
@@ -449,8 +427,8 @@ static void form_save(void)
     e = admin_set(cur_slot, f_ssid.buf, f_pass.buf,
                   term_checkbox_checked(chk_hidden) ? TINC_WF_HIDDEN : 0);
     close_dlg();
-    fmt(msg, sizeof msg, e == TINC_OK ? "Saved slot %u; joining..."
-        : "Slot %u not saved: %s", cur_slot + 1, tinc_errString(e));
+    term_snprintf(msg, sizeof msg, e == TINC_OK ? "Saved slot %u; joining..."
+                  : "Slot %u not saved: %s", cur_slot + 1, tinc_errString(e));
     set_status(msg);
     refresh();
 }
