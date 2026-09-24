@@ -17,9 +17,11 @@ pinned dependency for the admin message definitions.
 ## Project status
 
 Update this section when something lands or the release state changes.
-**As of 2026-09-23** (protocol v0.6). Latest tag `v0.4.2` (`efe5346`). No
-GitHub release for `v0.4.0`, `v0.4.1` or `v0.4.2`: each tag's CI run failed
-on the handoff test, so the Release step was skipped (see below).
+**As of 2026-09-23** (protocol v0.6). Latest tag `v0.6.0` (`6949158`). Its CI
+run failed on the handoff test like every tag since `v0.4.0`, so the Release
+step was skipped (see below); the user had the `v0.6.0` release created by
+hand with `gh release create v0.6.0 bin/TINCLIBC.8xp --generate-notes`,
+from a build of the tag. `v0.4.0` to `v0.4.2` have no release.
 
 **Dependencies** (git submodules under `lib/`):
 
