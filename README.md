@@ -107,4 +107,4 @@ tests. It then builds TINCLIBC and THANDOFF and runs the emulator tests.
   *Contents* access to that one repo.
 - **Releases**: push a `v*` tag to publish a GitHub release with `TINCLIBC.8xp` attached.
   The release only happens if the emulator tests pass, so none is published
-  while the handoff test is failing (`v0.4.0` has no release for this reason).
+  while the handoff test is failing (`v0.4.0` to `v0.4.2` have no release for this reason).

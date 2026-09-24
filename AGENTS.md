@@ -17,9 +17,9 @@ pinned dependency for the admin message definitions.
 ## Project status
 
 Update this section when something lands or the release state changes.
-**As of 2026-09-23** (protocol v0.4.0). Tagged `v0.4.0` (`dcdbfa9`), but no GitHub
-release: the tag's CI run failed on the handoff test, so the Release step
-was skipped (see below).
+**As of 2026-09-23** (protocol v0.4.0). Latest tag `v0.4.2` (`efe5346`). No
+GitHub release for `v0.4.0`, `v0.4.1` or `v0.4.2`: each tag's CI run failed
+on the handoff test, so the Release step was skipped (see below).
 
 **Dependencies** (git submodules under `lib/`):
 
@@ -76,6 +76,11 @@ branch contains.
   - If the lock appears between a refresh and a save, WIFI_SET/FORGET
     return `ERR_LOCKED`, shown as tinclib's "Wi-Fi settings are locked",
     and the next refresh greys the list.
+- About: the app version (`TINCLIBC_VERSION` in `src/main.c`), protocol,
+  tinclib and titrmlib versions, and a "Made w/ ♥ by" credit (the heart is
+  its own red one-cell panel). The firmware line is a placeholder
+  (`v0.0.0 (dummy board)`) until the protocol reports firmware version and
+  board name.
 - Handoff: TINCHND is parsed, and the result is written back with the
   nonce echo. The layout is checked against tinclib's real code in
   `tests/test_interop.c`.
@@ -137,7 +142,8 @@ branch contains.
   (~4 MB, too big for a secret) is `ti-84ce.rom` in the private repo
   `gavinhsmith/ce-rom`, fetched with the `CE_ROM_TOKEN` secret (a read-only
   PAT). That ROM is OS 5.8.5, arTIfiCE-jailbroken, with clibs installed.
-  Pushing a `v*` tag publishes a release with `TINCLIBC.8xp`, but only if
+  Bump `TINCLIBC_VERSION` in `src/main.c` before tagging, so About matches
+  the tag. Pushing a `v*` tag publishes a release with `TINCLIBC.8xp`, but only if
   the emulator tests pass. The Release step comes after them in the same
   job, so while `tests/handoff` is red, tags get no release.
 - CEdev on Windows can't build sources reached through `..`. Any extra
