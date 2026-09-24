@@ -4,7 +4,7 @@
 (Wi-Fi slots, the global insecure-TLS toggle) and is where apps hand off
 to when they need setup. See [AGENTS.md](AGENTS.md) for the design rules.
 
-Status: talks to the board through `tinclib`, on protocol v0.4.0.
+Status: talks to the board through `tinclib`, on protocol v0.6.
 - Status screen: Wi-Fi state, board clock, slot, signal (RSSI) and IP.
 - Saved networks: as many slots as the board reports (up to 254). Five show
   at a time, and the list scrolls with a scrollbar when there are more. Each
@@ -15,8 +15,10 @@ Status: talks to the board through `tinclib`, on protocol v0.4.0.
 - Connection test: Wi-Fi, the board clock, and one HTTPS GET of
   [`hello.txt`](hello.txt) from GitHub, printed on 200 (with the TLS
   failure reason if the handshake or certificate check fails).
-- Not in protocol 0.4 yet: scan, connect-now, and the insecure-TLS toggle.
-- Needs 0.4 firmware: an older board fails the handshake, and the status
+- About: app, protocol, tinclib, firmware (with board name) and titrmlib
+  versions.
+- Not in protocol 0.6 yet: scan, connect-now, and the insecure-TLS toggle.
+- Needs 0.6 firmware: an older board fails the handshake, and the status
   screen says to update the firmware.
 - Handoff return is blocked: see [Handoff](#handoff-tinchnd-appvar).
 
@@ -26,8 +28,8 @@ Dependencies are pinned git submodules under `lib/`:
 
 | Submodule | Tag |
 |---|---|
-| [tinclib](https://github.com/gavinhsmith/tinclib) | v0.4.1 |
-| [tinclib-protocol](https://github.com/gavinhsmith/tinclib-protocol) | v0.4.0 |
+| [tinclib](https://github.com/gavinhsmith/tinclib) | v0.6.0 |
+| [tinclib-protocol](https://github.com/gavinhsmith/tinclib-protocol) | v0.6 |
 | [titrmlib](https://github.com/gavinhsmith/titrmlib) | v0.3.0 |
 
 tinclib has its own nested copy of the protocol, which isn't checked out or

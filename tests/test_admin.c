@@ -87,6 +87,33 @@ int main(void)
         assert(admin_slot_count(&n) == TINC_ERR_VERSION);
     }
 
+    /* INFO (0.5): fw then board, sanitized for the screen */
+    {
+        static const uint8_t ok[] = { 5, '1', '.', '2', '.', '0',
+                                      4, 'D', '1', '\n', 0x80, 0xEE };
+        static const uint8_t no_board[] = { 3, '0', '.', '6' };
+        static const uint8_t big[] = { TINC_INFO_STR_MAX + 1 };
+        uint8_t max[2 + 2 * TINC_INFO_STR_MAX];
+        char fw[TINC_INFO_STR_MAX + 1], board[TINC_INFO_STR_MAX + 1];
+
+        set_reply(ok, sizeof ok, TINC_OK); /* trailing byte ignored */
+        assert(admin_info(fw, board) == TINC_OK && sent_type == TINC_T_INFO && sent_len == 0);
+        assert(!strcmp(fw, "1.2.0") && !strcmp(board, "D1??"));
+        memset(max, 'x', sizeof max);
+        max[0] = max[1 + TINC_INFO_STR_MAX] = TINC_INFO_STR_MAX;
+        set_reply(max, sizeof max, TINC_OK);
+        assert(admin_info(fw, board) == TINC_OK &&
+               strlen(fw) == TINC_INFO_STR_MAX && strlen(board) == TINC_INFO_STR_MAX);
+        set_reply(no_board, sizeof no_board, TINC_OK); /* board_len missing */
+        assert(admin_info(fw, board) == TINC_ERR_BAD_LEN && !fw[0] && !board[0]);
+        set_reply(big, sizeof big, TINC_OK);
+        assert(admin_info(fw, board) == TINC_ERR_BAD_LEN && !fw[0]);
+        set_reply(ok, 3, TINC_OK); /* fw cut short */
+        assert(admin_info(fw, board) == TINC_ERR_BAD_LEN);
+        set_reply(NULL, 0, TINC_ERR_NO_REPLY);
+        assert(admin_info(fw, board) == TINC_ERR_NO_REPLY && !fw[0] && !board[0]);
+    }
+
     /* WIFI_GET: one slot per request */
     {
         static const uint8_t home[] = { 4, 'h', 'o', 'm', 'e', 0, 0x99 };

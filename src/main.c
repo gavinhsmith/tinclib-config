@@ -9,7 +9,7 @@
 #include "admin.h"
 #include "handoff.h"
 
-#define TINCLIBC_VERSION "0.4.2" /* bump with each v* tag */
+#define TINCLIBC_VERSION "0.6.0" /* bump with each v* tag */
 #define HND_NAME "TINCHND"
 /* hello.txt in this repo: a known body to print back */
 #define TEST_URL "https://raw.githubusercontent.com/gavinhsmith/tinclib-config/refs/heads/main/hello.txt"
@@ -31,6 +31,7 @@ static term_panel_t *dlg, *dlg_list, *f_ssid_p, *f_pass_p, *f_hint, *chk_hidden,
 
 static tinc_err_t link_err = TINC_ERR_NOT_INIT;
 static admin_status_t st;
+static char fw_ver[TINC_INFO_STR_MAX + 1], board_name[TINC_INFO_STR_MAX + 1];
 /* The board says how many slots it has (up to 254); the list shows
  * SLOTS_VISIBLE at a time and scrolls (titrmlib adds a scrollbar). */
 #define SLOTS_VISIBLE 5
@@ -137,6 +138,9 @@ static void refresh(void)
         link_err = admin_status(&st);
     if (link_err == TINC_OK)
         link_err = admin_slot_count(&n_slots);
+    /* display only: a bad reply blanks the About line, nothing else */
+    if (link_err != TINC_OK || admin_info(fw_ver, board_name) != TINC_OK)
+        fw_ver[0] = board_name[0] = '\0';
 
     for (i = 0; link_err == TINC_OK && i < n_slots; i++) {
         bool on = st.wifi_state == TINC_WIFI_CONNECTED && st.slot == i;
@@ -220,12 +224,16 @@ static void show_detail(int item)
                           TINC_PROTO_MAJOR, TINC_PROTO_MINOR);
         break;
     default:
-        /* TODO: firmware version and board name once the protocol reports them */
         term_text_appendf(detail, "tinclib config v" TINCLIBC_VERSION "\n\n"
-                          "Protocol v%u.%u\ntinclib  v%s\n"
-                          "Firmware v0.0.0 (dummy board)\ntitrmlib v%s",
-                          TINC_PROTO_MAJOR, TINC_PROTO_MINOR,
-                          TINC_VERSION, TITRM_VERSION);
+                          "Protocol v%u.%u\ntinclib  v%s\n",
+                          TINC_PROTO_MAJOR, TINC_PROTO_MINOR, TINC_VERSION);
+        if (fw_ver[0])
+            term_text_appendf(detail, "Firmware v%s (%s)\n", fw_ver,
+                              board_name[0] ? board_name : "unnamed board");
+        else
+            term_text_append(detail, link_err == TINC_OK ? "Firmware unknown\n"
+                                                         : "Firmware (no board)\n");
+        term_text_appendf(detail, "titrmlib v%s", TITRM_VERSION);
         break;
     }
 }
