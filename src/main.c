@@ -222,7 +222,7 @@ static void show_detail(int item)
     default:
         /* TODO: firmware version and board name once the protocol reports them */
         term_text_appendf(detail, "tinclib config v" TINCLIBC_VERSION "\n\n"
-                          "Protocol v%u.%u\ntinclib v%s\n"
+                          "Protocol v%u.%u\ntinclib  v%s\n"
                           "Firmware v0.0.0 (dummy board)\ntitrmlib v%s",
                           TINC_PROTO_MAJOR, TINC_PROTO_MINOR,
                           TINC_VERSION, TITRM_VERSION);
