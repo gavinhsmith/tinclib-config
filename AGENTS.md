@@ -25,7 +25,7 @@ was skipped (see below).
 
 | Submodule | Pin |
 |---|---|
-| `tinclib` | v0.4.0 |
+| `tinclib` | v0.4.1 |
 | `tinclib-protocol` | v0.4.0 |
 | `titrmlib` | v0.3.0 |
 

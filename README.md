@@ -26,7 +26,7 @@ Dependencies are pinned git submodules under `lib/`:
 
 | Submodule | Tag |
 |---|---|
-| [tinclib](https://github.com/gavinhsmith/tinclib) | v0.4.0 |
+| [tinclib](https://github.com/gavinhsmith/tinclib) | v0.4.1 |
 | [tinclib-protocol](https://github.com/gavinhsmith/tinclib-protocol) | v0.4.0 |
 | [titrmlib](https://github.com/gavinhsmith/titrmlib) | v0.3.0 |
 
