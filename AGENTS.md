@@ -17,14 +17,14 @@ pinned dependency for the admin message definitions.
 ## Project status
 
 Update this section when something lands or the release state changes.
-**As of 2026-09-23** (protocol v0.3.0). No tags or releases yet.
+**As of 2026-09-23** (protocol v0.4.0). No tags or releases yet.
 
 **Dependencies** (git submodules under `lib/`):
 
 | Submodule | Pin |
 |---|---|
-| `tinclib` | `phase-3` @ `9a5b26b` (protocol v0.3.0; not merged or tagged yet; switch to its tag once it exists) |
-| `tinclib-protocol` | v0.3.0 |
+| `tinclib` | v0.4.0 |
+| `tinclib-protocol` | v0.4.0 |
 | `titrmlib` | v0.2.0 |
 
 tinclib has its own nested copy of the protocol at
@@ -39,7 +39,8 @@ branch contains.
 
 **Working:**
 - Talks to the board through tinclib:
-  - status screen (Wi-Fi state, connected slot, RSSI, IP)
+  - status screen (Wi-Fi state, board clock set or not, connected slot,
+    RSSI, IP)
   - saved slots, as many as the board reports. The count comes from the
     HELLO reply (`wifi_slots`, 1..254). tinclib doesn't keep that reply,
     so `admin_slot_count()` sends its own HELLO (idempotent, same
@@ -54,7 +55,12 @@ branch contains.
     - Set (SSID + password + a hidden-network checkbox, sent as
       `TINC_WF_HIDDEN`) and forget. Hidden slots are marked "(hidden)".
       Slot range is checked by the board (`ERR_BAD_ARG`), not here.
-  - connection test: Wi-Fi, then one HTTP GET to `http://example.com/`
+  - connection test: Wi-Fi, the board clock (`TINC_STATUSF_TIME_VALID`),
+    then one HTTPS GET of this repo's `hello.txt` (raw.githubusercontent.com,
+    `main`), printing the body on 200. On `ERR_TLS`/`ERR_CERT`
+    it also shows the reason from `tinc_errDetail()` (`TINC_TLSR_*`). A
+    clock that isn't set yet is shown but not fatal: the board waits for
+    it in the TLS phase and fails with `ERR_TIME` if it never comes.
 - **Wi-Fi lock (0.2):** when STATUS reports `TINC_STATUSF_WIFI_LOCKED`,
   TINCLIBC treats it as "the board won't change profiles". The native PC
   build of the firmware uses this, since it can only use the PC's own
@@ -77,13 +83,14 @@ branch contains.
   see the handoff rules below. `tests/handoff` (CEmu) is red in CI until
   this is fixed in CEdev's `os_RunPrgm` or in tinclib. That's expected: the
   user chose to leave it failing visibly.
-- **Protocol 0.3 has only WIFI_GET/SET/FORGET as admin commands.** Scan,
-  connect-now, the insecure-TLS toggle (`ERR_INSECURE_DISABLED` doesn't
-  exist yet either), CA bundle updates, firmware info, HTTPS and time sync
-  all need `tinclib-protocol` (and the firmware) first. The UI shows these
-  as "not in protocol 0.3".
-- **No 0.3 firmware yet.** `tinclib-firmware` `main` pins protocol 0.2
-  (`1c008bc`). Pre-1.0, HELLO needs an exact MAJOR.MINOR match, so an older
+- **Protocol 0.4 has only WIFI_GET/SET/FORGET as admin commands.** Scan,
+  connect-now, the insecure-TLS toggle (0.4 only reserves the `INSECURE`
+  request flag and `ERR_INSECURE_DISABLED` 0x0B), CA bundle updates and
+  firmware info all need `tinclib-protocol` (and the firmware) first. The
+  UI shows the toggle as "not in protocol 0.4". Time sync is the board's
+  own business (SNTP); the protocol only reports it as a STATUS flag.
+- **No 0.4 firmware yet.** `tinclib-firmware` `main` pins protocol 0.3
+  (`f1f123d`). Pre-1.0, HELLO needs an exact MAJOR.MINOR match, so an older
   board answers `ERR_VERSION`, and the status screen says to update the
   firmware.
 - **Real hardware:** tinclib's AGENTS.md reports that srldrvce supports only
@@ -91,7 +98,7 @@ branch contains.
   common ESP8266 dev boards) aren't seen by the calculator. That's a
   hardware decision for the user, not something to fix here.
 - **Connect order:** the UI says the board picks the strongest saved
-  network. Protocol 0.3's `WIFI_SET` comment says "first reachable slot,
+  network. Protocol 0.4's `WIFI_SET` comment says "first reachable slot,
   0 -> wifi_slots-1" instead. The two design docs disagree, so check with the user
   before changing either.
 - **RSSI only for the connected slot:** STATUS carries RSSI for the current
@@ -201,7 +208,7 @@ Rules:
   in CEmu.
 - **Known blocker (not fixed here):** in CEmu (OS 5.8.5), returning through
   that callback crashes the calculator (RAM Cleared) when the called
-  program is bigger than the calling app. TINCLIBC (~38 KB) is bigger than
+  program is bigger than the calling app. TINCLIBC (~40 KB) is bigger than
   most apps. It's in CEdev's `os_RunPrgm` return path or the OS, underneath
   tinclib's handoff design: fix it there, not with a workaround here.
   - **Measured:** with a 5.4 KB caller, a 2.7 KB stand-in TINCLIBC returns
@@ -243,7 +250,7 @@ Rules:
 - Off by default. This is the **only** place in the whole system where it
   can be turned on — no per-app or per-request-only override exists
   (to be enforced protocol-side via `ERR_INSECURE_DISABLED`, which
-  `tinclib-protocol` v0.3.0 doesn't define yet; nor is there a toggle
+  `tinclib-protocol` v0.4.0 only reserves; nor is there a toggle
   command). Do not add any other path to enable it.
 - The UI here should make clear this is a global, security-relevant
   setting, not a per-connection convenience flag.

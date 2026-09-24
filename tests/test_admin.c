@@ -43,7 +43,7 @@ int main(void)
     admin_status_t st;
     char longpass[TINC_PASS_MAX + 2];
 
-    /* STATUS, with the 0.2 flags byte */
+    /* STATUS flags: WIFI_LOCKED (0.2), TIME_VALID (0.4) */
     {
         static const uint8_t r[] = { TINC_WIFI_CONNECTED, 1, (uint8_t)-61,
                                      192, 168, 1, 7, 0, 0, 0, 0, 0,
@@ -54,9 +54,9 @@ int main(void)
         assert(admin_status(&st) == TINC_OK && sent_type == TINC_T_STATUS);
         assert(st.wifi_state == TINC_WIFI_CONNECTED && st.slot == 1 && st.rssi == -61);
         assert(st.ip[0] == 192 && st.ip[3] == 7);
-        assert(st.wifi_locked);
-        set_reply(unlocked, sizeof unlocked, TINC_OK); /* other flag bits ignored */
-        assert(admin_status(&st) == TINC_OK && !st.wifi_locked);
+        assert(st.wifi_locked && !st.time_valid);
+        set_reply(unlocked, sizeof unlocked, TINC_OK); /* 0xFE: TIME_VALID set, other bits ignored */
+        assert(admin_status(&st) == TINC_OK && !st.wifi_locked && st.time_valid);
         set_reply(r, TINC_STATUS_RESP_LEN - 1, TINC_OK); /* a 0.1-sized reply */
         assert(admin_status(&st) == TINC_ERR_BAD_LEN);
         set_reply(NULL, 0, TINC_ERR_NO_REPLY);

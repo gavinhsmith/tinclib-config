@@ -19,6 +19,7 @@ typedef struct {
     int8_t rssi;         /* dBm, while connected */
     uint8_t ip[4];
     bool wifi_locked;    /* the board refuses WIFI_SET/FORGET (ERR_LOCKED) */
+    bool time_valid;     /* the board's clock is set, so https can verify certs */
 } admin_status_t;
 
 tinc_err_t admin_status(admin_status_t *st);
