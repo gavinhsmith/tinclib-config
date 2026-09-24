@@ -17,7 +17,9 @@ pinned dependency for the admin message definitions.
 ## Project status
 
 Update this section when something lands or the release state changes.
-**As of 2026-09-23** (protocol v0.4.0). No tags or releases yet.
+**As of 2026-09-23** (protocol v0.4.0). Tagged `v0.4.0` (`dcdbfa9`), but no GitHub
+release: the tag's CI run failed on the handoff test, so the Release step
+was skipped (see below).
 
 **Dependencies** (git submodules under `lib/`):
 
@@ -135,7 +137,9 @@ branch contains.
   (~4 MB, too big for a secret) is `ti-84ce.rom` in the private repo
   `gavinhsmith/ce-rom`, fetched with the `CE_ROM_TOKEN` secret (a read-only
   PAT). That ROM is OS 5.8.5, arTIfiCE-jailbroken, with clibs installed.
-  Pushing a `v*` tag publishes a release with `TINCLIBC.8xp`.
+  Pushing a `v*` tag publishes a release with `TINCLIBC.8xp`, but only if
+  the emulator tests pass. The Release step comes after them in the same
+  job, so while `tests/handoff` is red, tags get no release.
 - CEdev on Windows can't build sources reached through `..`. Any extra
   CEdev program builds from the repo root with its own `.mk` (see
   `tests/handoff/handoff.mk`); don't copy sources around.
