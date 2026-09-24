@@ -10,7 +10,8 @@
 #include "handoff.h"
 
 #define HND_NAME "TINCHND"
-#define TEST_URL "http://example.com/"
+/* hello.txt in this repo: a known body to print back */
+#define TEST_URL "https://raw.githubusercontent.com/gavinhsmith/tinclib-config/refs/heads/main/hello.txt"
 #define COLOR_GREY 0xB5 /* graphx default palette */
 
 enum { M_STATUS, M_TEST, M_TLS, M_ABOUT };
@@ -36,6 +37,8 @@ static char slots_title[40];
 static uint8_t cur_slot;
 static bool started, testing, test_ok;
 static char msg[64];
+static char test_body[64];
+static uint8_t test_len;
 
 /* ---- Text fields --------------------------------------------------------
  * titrmlib's input only types upper case and holds 48 chars; SSIDs and
@@ -189,6 +192,7 @@ static void show_detail(int item)
             break;
         }
         term_text_appendf(detail, "Wi-Fi: %s\n", wifi_name(st.wifi_state));
+        term_text_appendf(detail, "Clock: %s\n", st.time_valid ? "set" : "not set");
         if (st.wifi_locked)
             term_text_append(detail, "Settings: locked by the board\n");
         if (st.wifi_state == TINC_WIFI_CONNECTED)
@@ -200,7 +204,8 @@ static void show_detail(int item)
                          "[enter] refresh");
         break;
     case M_TEST:
-        term_text_append(detail, "Checks Wi-Fi and one real HTTP request.\n\n"
+        term_text_append(detail, "Checks Wi-Fi, the board's clock and one "
+                         "real HTTPS request.\n\n"
                          "[enter] run");
         break;
     case M_TLS:
@@ -219,6 +224,22 @@ static void show_detail(int item)
 
 /* ---- Connection test (driven by ticks) --------------------------------- */
 
+static const char *tls_reason(uint8_t r)
+{
+    switch (r) {
+    case TINC_TLSR_VERSION:       return "no common TLS version";
+    case TINC_TLSR_CIPHER:        return "no common cipher";
+    case TINC_TLSR_ALERT:         return "server refused";
+    case TINC_TLSR_PROTO:         return "bad handshake";
+    case TINC_TLSR_EXPIRED:       return "certificate expired";
+    case TINC_TLSR_NOT_YET_VALID: return "certificate not valid yet";
+    case TINC_TLSR_HOSTNAME:      return "certificate for another host";
+    case TINC_TLSR_UNTRUSTED:     return "no trusted root on the board";
+    case TINC_TLSR_BAD_CHAIN:     return "bad certificate chain";
+    default:                      return "unknown";
+    }
+}
+
 static void test_start(void)
 {
     static const tinc_request_t req = { TINC_GET, TEST_URL, NULL, NULL, 0 };
@@ -226,6 +247,7 @@ static void test_start(void)
 
     term_text_clear(detail);
     test_ok = false;
+    test_len = 0;
     if (link_err != TINC_OK) {
         term_text_append(detail, "No board.");
         return;
@@ -237,11 +259,14 @@ static void test_start(void)
     admin_status(&st);
     term_text_appendf(detail, "Wi-Fi: " TERM_S_CHECK " joined, %s %d dBm\n",
                       bars(st.rssi), st.rssi);
+    /* Not fatal: the board waits for its clock in the TLS phase (ERR_TIME). */
+    term_text_append(detail, st.time_valid ? "Clock: " TERM_S_CHECK " set\n"
+                                           : "Clock: not set yet\n");
     if ((e = tinc_request(&req)) != TINC_OK) {
-        term_text_appendf(detail, "HTTP: " TERM_S_CROSSMARK " %s", tinc_errString(e));
+        term_text_appendf(detail, "HTTPS: " TERM_S_CROSSMARK " %s", tinc_errString(e));
         return;
     }
-    term_text_append(detail, "HTTP GET " TEST_URL "...\n");
+    term_text_append(detail, "GET " TEST_URL "...\n");
     testing = true;
     term_set_tick(ctx, 100);
 }
@@ -250,22 +275,33 @@ static void test_tick(void)
 {
     static uint8_t sink[64];
     tinc_state_t s = tinc_poll();
+    int16_t n;
 
-    while (tinc_read(sink, sizeof sink) > 0)
-        ;
+    /* Keep the start of the body to print; drop the rest. */
+    while ((n = tinc_read(sink, sizeof sink)) > 0) {
+        if (n > (int16_t)(sizeof test_body - 1 - test_len))
+            n = sizeof test_body - 1 - test_len;
+        memcpy(test_body + test_len, sink, n);
+        test_len += n;
+    }
     if (s != TINC_DONE && s != TINC_ERROR)
         return;
     testing = false;
     term_set_tick(ctx, 0);
     if (s == TINC_DONE) {
         test_ok = true;
-        term_text_appendf(detail, "HTTP: " TERM_S_CHECK " %u\n", tinc_httpStatus());
+        term_text_appendf(detail, "HTTPS: " TERM_S_CHECK " %u\n", tinc_httpStatus());
+        if (tinc_httpStatus() == 200) {
+            test_body[test_len] = '\0';
+            term_text_appendf(detail, "\n%s", test_body);
+        }
     } else {
-        term_text_appendf(detail, "HTTP: " TERM_S_CROSSMARK " %s\n",
-                          tinc_errString(tinc_error()));
+        tinc_err_t e = tinc_error();
+
+        term_text_appendf(detail, "HTTPS: " TERM_S_CROSSMARK " %s\n", tinc_errString(e));
+        if (e == TINC_ERR_TLS || e == TINC_ERR_CERT)
+            term_text_appendf(detail, "Reason: %s\n", tls_reason(tinc_errDetail()));
     }
-    term_text_appendf(detail, "\nHTTPS and time sync: not in protocol %u.%u.",
-                      TINC_PROTO_MAJOR, TINC_PROTO_MINOR);
 }
 
 /* ---- Slot dialogs ------------------------------------------------------ */

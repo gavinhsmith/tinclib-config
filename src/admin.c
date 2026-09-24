@@ -16,6 +16,7 @@ tinc_err_t admin_status(admin_status_t *st)
     st->rssi = (int8_t)p[TINC_STATUS_RSSI];
     memcpy(st->ip, p + TINC_STATUS_IP, 4);
     st->wifi_locked = (p[TINC_STATUS_FLAGS] & TINC_STATUSF_WIFI_LOCKED) != 0;
+    st->time_valid = (p[TINC_STATUS_FLAGS] & TINC_STATUSF_TIME_VALID) != 0;
     return TINC_OK;
 }
 
