@@ -25,7 +25,7 @@ Update this section when something lands or the release state changes.
 |---|---|
 | `tinclib` | v0.4.0 |
 | `tinclib-protocol` | v0.4.0 |
-| `titrmlib` | v0.2.0 |
+| `titrmlib` | v0.3.0 |
 
 tinclib has its own nested copy of the protocol at
 `lib/tinclib/external/tinclib-protocol`. It isn't checked out or built here,

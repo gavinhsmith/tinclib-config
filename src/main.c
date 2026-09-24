@@ -13,6 +13,9 @@
 /* hello.txt in this repo: a known body to print back */
 #define TEST_URL "https://raw.githubusercontent.com/gavinhsmith/tinclib-config/refs/heads/main/hello.txt"
 #define COLOR_GREY 0xB5 /* graphx default palette */
+/* Test result marks: code page 437 has no check mark, so its square root. */
+#define S_OK "\xFB"
+#define S_FAIL "x"
 
 enum { M_STATUS, M_TEST, M_TLS, M_ABOUT };
 static const char *const menu_items[] = {
@@ -253,17 +256,17 @@ static void test_start(void)
         return;
     }
     if (!tinc_isActive(TINC_WIFI)) {
-        term_text_append(detail, "Wi-Fi: " TERM_S_CROSSMARK " not joined");
+        term_text_append(detail, "Wi-Fi: " S_FAIL " not joined");
         return;
     }
     admin_status(&st);
-    term_text_appendf(detail, "Wi-Fi: " TERM_S_CHECK " joined, %s %d dBm\n",
+    term_text_appendf(detail, "Wi-Fi: " S_OK " joined, %s %d dBm\n",
                       bars(st.rssi), st.rssi);
     /* Not fatal: the board waits for its clock in the TLS phase (ERR_TIME). */
-    term_text_append(detail, st.time_valid ? "Clock: " TERM_S_CHECK " set\n"
+    term_text_append(detail, st.time_valid ? "Clock: " S_OK " set\n"
                                            : "Clock: not set yet\n");
     if ((e = tinc_request(&req)) != TINC_OK) {
-        term_text_appendf(detail, "HTTPS: " TERM_S_CROSSMARK " %s", tinc_errString(e));
+        term_text_appendf(detail, "HTTPS: " S_FAIL " %s", tinc_errString(e));
         return;
     }
     term_text_append(detail, "GET " TEST_URL "...\n");
@@ -290,7 +293,7 @@ static void test_tick(void)
     term_set_tick(ctx, 0);
     if (s == TINC_DONE) {
         test_ok = true;
-        term_text_appendf(detail, "HTTPS: " TERM_S_CHECK " %u\n", tinc_httpStatus());
+        term_text_appendf(detail, "HTTPS: " S_OK " %u\n", tinc_httpStatus());
         if (tinc_httpStatus() == 200) {
             test_body[test_len] = '\0';
             term_text_appendf(detail, "\n%s", test_body);
@@ -298,7 +301,7 @@ static void test_tick(void)
     } else {
         tinc_err_t e = tinc_error();
 
-        term_text_appendf(detail, "HTTPS: " TERM_S_CROSSMARK " %s\n", tinc_errString(e));
+        term_text_appendf(detail, "HTTPS: " S_FAIL " %s\n", tinc_errString(e));
         if (e == TINC_ERR_TLS || e == TINC_ERR_CERT)
             term_text_appendf(detail, "Reason: %s\n", tls_reason(tinc_errDetail()));
     }
