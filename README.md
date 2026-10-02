@@ -1,25 +1,58 @@
 # tinclib-config
 
-**TINCLIBC.8xp**: the TI-84 Plus CE program that owns TINCLIB board configuration
-(Wi-Fi slots, the global insecure-TLS toggle) and is where apps hand off
-to when they need setup. See [AGENTS.md](AGENTS.md) for the design rules.
+[![CI](https://github.com/gavinhsmith/tinclib-config/actions/workflows/ci.yml/badge.svg)](https://github.com/gavinhsmith/tinclib-config/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/gavinhsmith/tinclib-config)](https://github.com/gavinhsmith/tinclib-config/releases)
+[![License: Apache 2.0](https://img.shields.io/github/license/gavinhsmith/tinclib-config)](LICENSE.md)
 
-Status: talks to the board through `tinclib`, on protocol v0.6.
-- Status screen: Wi-Fi state, board clock, slot, signal (RSSI) and IP.
-- Saved networks: as many slots as the board reports (up to 254). Five show
-  at a time, and the list scrolls with a scrollbar when there are more. Each
-  slot can be set (SSID, masked password, hidden network) or forgotten.
-- Wi-Fi lock: if the board locks its Wi-Fi profiles (for example the
-  native PC build of the firmware), the slot list is greyed out, and
-  selecting a slot shows a notice instead.
-- Connection test: Wi-Fi, the board clock, and one HTTPS GET of
-  [`hello.txt`](hello.txt) from GitHub, printed on 200 (with the TLS
-  failure reason if the handshake or certificate check fails).
-- About: app, protocol, tinclib, firmware (with board name) and titrmlib
+**TINCLIBC: Wi-Fi setup for the TI-84 Plus CE.** A calculator program that
+connects your ESP8266 board to Wi-Fi, shows its status and tests the
+connection, so programs built with
+[tinclib](https://github.com/gavinhsmith/tinclib) can get online. Apps that
+need setup hand off to it and get the result back.
+
+- **Status screen**: Wi-Fi state, board clock, slot, signal (RSSI) and IP.
+- **Saved networks**: as many slots as the board reports (up to 254). Five
+  show at a time, and the list scrolls with a scrollbar when there are more.
+  Each slot can be set (SSID, masked password, hidden network) or forgotten.
+- **Connection test**: Wi-Fi, the board clock, and one HTTPS GET of
+  [`hello.txt`](hello.txt) from GitHub, printed on 200 (with the TLS failure
+  reason if the handshake or certificate check fails).
+- **Wi-Fi lock aware**: if the board locks its Wi-Fi profiles (for example
+  the PC build of the firmware), the slot list is greyed out, and selecting a
+  slot shows a notice instead.
+- **About**: app, protocol, tinclib, firmware (with board name) and titrmlib
   versions.
+- **Tested**: host tests with ASan and UBSan, and emulator tests in CEmu.
+
+## How it fits together
+
+tinclib-config is one part of four:
+
+| Repo | What |
+|---|---|
+| [tinclib](https://github.com/gavinhsmith/tinclib) | The C library your calculator program links against |
+| [tinclib-firmware](https://github.com/gavinhsmith/tinclib-firmware) | Firmware for the ESP8266 board, which does the networking |
+| **tinclib-config** (this one) | TINCLIBC, the calculator app for Wi-Fi setup |
+| [tinclib-protocol](https://github.com/gavinhsmith/tinclib-protocol) | The wire protocol between calculator and board |
+
+See [AGENTS.md](AGENTS.md) for the design rules.
+
+## Quick start
+
+1. Flash [tinclib-firmware](https://github.com/gavinhsmith/tinclib-firmware)
+   v0.6 onto the board. Older firmware fails the handshake, and the status
+   screen says to update it.
+2. Download `TINCLIBC.8xp` from
+   [Releases](https://github.com/gavinhsmith/tinclib-config/releases/latest).
+3. Send it to the calculator with TI Connect CE or TILP, along with the
+   [CE C libraries](https://github.com/CE-Programming/libraries/releases)
+   (graphx, keypadc, fileioc, usbdrvce, srldrvce).
+4. Plug in the board, run `prgmTINCLIBC`, and add your network under saved
+   networks.
+
+## Limits
+
 - Not in protocol 0.6 yet: scan, connect-now, and the insecure-TLS toggle.
-- Needs 0.6 firmware: an older board fails the handshake, and the status
-  screen says to update the firmware.
 - Handoff is blocked: see [Handoff](#handoff-tinchnd-appvar).
 - Needs a lot of free RAM to start, even when archived: the program
   (36.5 KB in v0.6.1, 42.5 KB in v0.6.0) is copied into RAM, and LibLoad loads USBDRVCE,
@@ -117,3 +150,7 @@ tests. It then builds TINCLIBC and THANDOFF and runs the emulator tests.
   The release only happens if the emulator tests pass, so none is published
   while the handoff test is failing (`v0.4.0` to `v0.4.2` have no release for this reason;
   `v0.6.0` and `v0.6.1` were released by hand).
+
+## License
+
+[Apache 2.0](LICENSE.md)
