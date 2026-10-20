@@ -169,8 +169,6 @@ branch contains.
 - CEdev on Windows can't build sources reached through `..`. Any extra
   CEdev program builds from the repo root with its own `.mk` (see
   `tests/handoff/handoff.mk`); don't copy sources around.
-- Commits and PRs are authored by the user only, with no AI co-author
-  trailers.
 
 ## What TINCLIBC owns vs. what apps own — do not blur this line
 
