@@ -17,7 +17,7 @@ pinned dependency for the admin message definitions.
 ## Project status
 
 Update this section when something lands or the release state changes.
-**As of 2026-09-24** (protocol v0.6). Latest tag `v0.6.1` (`e3320e2`):
+**As of 2026-10-20** (protocol v0.7, untagged on `main`). Latest tag `v0.6.1` (`e3320e2`):
 titrmlib v0.4.2 and no CEdev printf, 36.5 KB. CI fails on the handoff test
 for every tag since `v0.4.0`, so the Release step is skipped (see below).
 The `v0.6.0` and `v0.6.1` releases were created by hand with
@@ -28,8 +28,8 @@ of the tag. `v0.4.0` to `v0.4.2` have no release.
 
 | Submodule | Pin |
 |---|---|
-| `tinclib` | v0.6.0 |
-| `tinclib-protocol` | v0.6 |
+| `tinclib` | v0.7.0 |
+| `tinclib-protocol` | v0.7 |
 | `titrmlib` | v0.4.2 |
 
 tinclib has its own nested copy of the protocol at
@@ -37,7 +37,7 @@ tinclib has its own nested copy of the protocol at
 and CI fails if its pin differs from `lib/tinclib-protocol`. Bump both
 together.
 
-The protocol tags `vMAJOR.MINOR` from 0.5 on (`v0.5`, `v0.6`); older
+The protocol tags `vMAJOR.MINOR` from 0.5 on (`v0.5`, `v0.6`, `v0.7`); older
 versions are `v0.1.0`..`v0.4.0`.
 
 Upstream moved the protocol's `v0.2.0` tag (`9c21d6e` to `1c008bc`, same
@@ -61,7 +61,8 @@ branch contains.
     - Row buffers are sized for `TINC_WIFI_SLOTS_MAX` (254), about 14 KB
       of static data (32 KB total, of about 60 KB available).
     - Set (SSID + password + a hidden-network checkbox, sent as
-      `TINC_WF_HIDDEN`) and forget. Hidden slots are marked "(hidden)".
+      `TINC_WF_HIDDEN`) and forget. An empty password is an open network
+      (0.7); the board rejects 1..7 chars with `ERR_BAD_ARG`. Hidden slots are marked "(hidden)".
       Slot range is checked by the board (`ERR_BAD_ARG`), not here.
   - connection test: Wi-Fi, the board clock (`TINC_STATUSF_TIME_VALID`),
     then one HTTPS GET of this repo's `hello.txt` (raw.githubusercontent.com,
@@ -86,8 +87,9 @@ branch contains.
   tinclib and titrmlib versions, and a "Made w/ ♥ by" credit (the heart is
   its own red one-cell panel). The firmware line comes from INFO (0.5):
   `admin_info()` asks for it on each refresh, like `admin_slot_count()`,
-  since tinclib doesn't wrap INFO. It's display only, so a bad reply only
-  blanks that line ("Firmware unknown").
+  since tinclib doesn't wrap INFO. Below it, the board's Wi-Fi MAC
+  (INFO, 0.7), for MAC-filtered networks. It's display only, so a bad reply
+  only blanks those lines ("Firmware unknown").
 - Handoff: TINCHND is parsed, and the result is written back with the
   nonce echo. The layout is checked against tinclib's real code in
   `tests/test_interop.c`.
@@ -98,14 +100,14 @@ branch contains.
   on launch instead of on return. `tests/handoff` (CEmu) is red in CI until
   this is fixed in CEdev's `os_RunPrgm` or in tinclib. That's expected: the
   user chose to leave it failing visibly.
-- **Protocol 0.6 has only WIFI_GET/SET/FORGET as admin commands.** Scan,
-  connect-now, the insecure-TLS toggle (0.6 only reserves the `INSECURE`
+- **Protocol 0.7 has only WIFI_GET/SET/FORGET as admin commands.** Scan,
+  connect-now, the insecure-TLS toggle (0.7 only reserves the `INSECURE`
   request flag and `ERR_INSECURE_DISABLED` 0x0B) and CA bundle updates all
   need `tinclib-protocol` (and the firmware) first. The UI shows the toggle
-  as "not in protocol 0.6". Time sync is the board's
+  as "not in protocol 0.7". Time sync is the board's
   own business (SNTP); the protocol only reports it as a STATUS flag.
-- **No 0.6 firmware yet.** `tinclib-firmware` `main` pins protocol 0.4
-  (`f1dd7b0`). Pre-1.0, HELLO needs an exact MAJOR.MINOR match, so an older
+- **No 0.7 firmware yet.** `tinclib-firmware` `main` and its `v0.6.0` tag
+  pin protocol 0.6 (`fde44be`). Pre-1.0, HELLO needs an exact MAJOR.MINOR match, so an older
   board answers `ERR_VERSION`, and the status screen says to update the
   firmware.
 - **Startup RAM:** v0.6.0 (42.5 KB) failed to start on a real calculator
@@ -123,7 +125,7 @@ branch contains.
   common ESP8266 dev boards) aren't seen by the calculator. That's a
   hardware decision for the user, not something to fix here.
 - **Connect order:** the UI says the board picks the strongest saved
-  network. Protocol 0.6's `WIFI_SET` comment says "first reachable slot,
+  network. Protocol 0.7's `WIFI_SET` comment says "first reachable slot,
   0 -> wifi_slots-1" instead. The two design docs disagree, so check with the user
   before changing either.
 - **RSSI only for the connected slot:** STATUS carries RSSI for the current
@@ -283,7 +285,7 @@ Rules:
 - Off by default. This is the **only** place in the whole system where it
   can be turned on — no per-app or per-request-only override exists
   (to be enforced protocol-side via `ERR_INSECURE_DISABLED`, which
-  `tinclib-protocol` v0.6 only reserves; nor is there a toggle
+  `tinclib-protocol` v0.7 only reserves; nor is there a toggle
   command). Do not add any other path to enable it.
 - The UI here should make clear this is a global, security-relevant
   setting, not a per-connection convenience flag.

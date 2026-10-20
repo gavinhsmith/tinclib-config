@@ -40,7 +40,7 @@ See [AGENTS.md](AGENTS.md) for the design rules.
 ## Quick start
 
 1. Flash [tinclib-firmware](https://github.com/gavinhsmith/tinclib-firmware)
-   v0.6 onto the board. Older firmware fails the handshake, and the status
+   v0.7 onto the board. Older firmware fails the handshake, and the status
    screen says to update it.
 2. Download `TINCLIBC.8xp` from
    [Releases](https://github.com/gavinhsmith/tinclib-config/releases/latest).
@@ -52,7 +52,7 @@ See [AGENTS.md](AGENTS.md) for the design rules.
 
 ## Limits
 
-- Not in protocol 0.6 yet: scan, connect-now, and the insecure-TLS toggle.
+- Not in protocol 0.7 yet: scan, connect-now, and the insecure-TLS toggle.
 - Handoff is blocked: see [Handoff](#handoff-tinchnd-appvar).
 - Needs a lot of free RAM to start, even when archived: the program
   (36.5 KB in v0.6.1, 42.5 KB in v0.6.0) is copied into RAM, and LibLoad loads USBDRVCE,
@@ -67,8 +67,8 @@ Dependencies are pinned git submodules under `lib/`:
 
 | Submodule | Tag |
 |---|---|
-| [tinclib](https://github.com/gavinhsmith/tinclib) | v0.6.0 |
-| [tinclib-protocol](https://github.com/gavinhsmith/tinclib-protocol) | v0.6 |
+| [tinclib](https://github.com/gavinhsmith/tinclib) | v0.7.0 |
+| [tinclib-protocol](https://github.com/gavinhsmith/tinclib-protocol) | v0.7 |
 | [titrmlib](https://github.com/gavinhsmith/titrmlib) | v0.4.2 |
 
 tinclib has its own nested copy of the protocol, which isn't checked out or

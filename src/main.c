@@ -31,6 +31,7 @@ static term_panel_t *dlg, *dlg_list, *f_ssid_p, *f_pass_p, *f_hint, *chk_hidden,
 static tinc_err_t link_err = TINC_ERR_NOT_INIT;
 static admin_status_t st;
 static char fw_ver[TINC_INFO_STR_MAX + 1], board_name[TINC_INFO_STR_MAX + 1];
+static uint8_t board_mac[TINC_MAC_LEN];
 /* The board says how many slots it has (up to 254); the list shows
  * SLOTS_VISIBLE at a time and scrolls (titrmlib adds a scrollbar). */
 #define SLOTS_VISIBLE 5
@@ -138,7 +139,7 @@ static void refresh(void)
     if (link_err == TINC_OK)
         link_err = admin_slot_count(&n_slots);
     /* display only: a bad reply blanks the About line, nothing else */
-    if (link_err != TINC_OK || admin_info(fw_ver, board_name) != TINC_OK)
+    if (link_err != TINC_OK || admin_info(fw_ver, board_name, board_mac) != TINC_OK)
         fw_ver[0] = board_name[0] = '\0';
 
     for (i = 0; link_err == TINC_OK && i < n_slots; i++) {
@@ -228,10 +229,13 @@ static void show_detail(int item)
         term_text_appendf(detail, "tinclib config v" TINCLIBC_VERSION "\n\n"
                           "Protocol v%u.%u\ntinclib  v%s\n",
                           TINC_PROTO_MAJOR, TINC_PROTO_MINOR, TINC_VERSION);
-        if (fw_ver[0])
+        if (fw_ver[0]) {
             term_text_appendf(detail, "Firmware v%s (%s)\n", fw_ver,
                               board_name[0] ? board_name : "unnamed board");
-        else
+            term_text_appendf(detail, "MAC %02X:%02X:%02X:%02X:%02X:%02X\n",
+                              board_mac[0], board_mac[1], board_mac[2],
+                              board_mac[3], board_mac[4], board_mac[5]);
+        } else
             term_text_append(detail, link_err == TINC_OK ? "Firmware unknown\n"
                                                          : "Firmware (no board)\n");
         term_text_appendf(detail, "titrmlib v%s", TITRM_VERSION);

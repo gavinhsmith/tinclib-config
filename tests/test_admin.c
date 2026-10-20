@@ -87,31 +87,37 @@ int main(void)
         assert(admin_slot_count(&n) == TINC_ERR_VERSION);
     }
 
-    /* INFO (0.5): fw then board, sanitized for the screen */
+    /* INFO (0.5): fw then board, sanitized for the screen; mac (0.7) */
     {
         static const uint8_t ok[] = { 5, '1', '.', '2', '.', '0',
-                                      4, 'D', '1', '\n', 0x80, 0xEE };
+                                      4, 'D', '1', '\n', 0x80,
+                                      0x5C, 0xCF, 0x7F, 0x12, 0x34, 0x56, 0xEE };
+        static const uint8_t want_mac[] = { 0x5C, 0xCF, 0x7F, 0x12, 0x34, 0x56 };
         static const uint8_t no_board[] = { 3, '0', '.', '6' };
         static const uint8_t big[] = { TINC_INFO_STR_MAX + 1 };
-        uint8_t max[2 + 2 * TINC_INFO_STR_MAX];
+        uint8_t max[2 + 2 * TINC_INFO_STR_MAX + TINC_MAC_LEN];
         char fw[TINC_INFO_STR_MAX + 1], board[TINC_INFO_STR_MAX + 1];
+        uint8_t mac[TINC_MAC_LEN];
 
         set_reply(ok, sizeof ok, TINC_OK); /* trailing byte ignored */
-        assert(admin_info(fw, board) == TINC_OK && sent_type == TINC_T_INFO && sent_len == 0);
-        assert(!strcmp(fw, "1.2.0") && !strcmp(board, "D1??"));
+        assert(admin_info(fw, board, mac) == TINC_OK && sent_type == TINC_T_INFO && sent_len == 0);
+        assert(!strcmp(fw, "1.2.0") && !strcmp(board, "D1??") &&
+               !memcmp(mac, want_mac, sizeof mac));
+        set_reply(ok, sizeof ok - 2, TINC_OK); /* mac cut short */
+        assert(admin_info(fw, board, mac) == TINC_ERR_BAD_LEN && !fw[0] && !board[0]);
         memset(max, 'x', sizeof max);
         max[0] = max[1 + TINC_INFO_STR_MAX] = TINC_INFO_STR_MAX;
         set_reply(max, sizeof max, TINC_OK);
-        assert(admin_info(fw, board) == TINC_OK &&
+        assert(admin_info(fw, board, mac) == TINC_OK &&
                strlen(fw) == TINC_INFO_STR_MAX && strlen(board) == TINC_INFO_STR_MAX);
         set_reply(no_board, sizeof no_board, TINC_OK); /* board_len missing */
-        assert(admin_info(fw, board) == TINC_ERR_BAD_LEN && !fw[0] && !board[0]);
+        assert(admin_info(fw, board, mac) == TINC_ERR_BAD_LEN && !fw[0] && !board[0]);
         set_reply(big, sizeof big, TINC_OK);
-        assert(admin_info(fw, board) == TINC_ERR_BAD_LEN && !fw[0]);
+        assert(admin_info(fw, board, mac) == TINC_ERR_BAD_LEN && !fw[0]);
         set_reply(ok, 3, TINC_OK); /* fw cut short */
-        assert(admin_info(fw, board) == TINC_ERR_BAD_LEN);
+        assert(admin_info(fw, board, mac) == TINC_ERR_BAD_LEN);
         set_reply(NULL, 0, TINC_ERR_NO_REPLY);
-        assert(admin_info(fw, board) == TINC_ERR_NO_REPLY && !fw[0] && !board[0]);
+        assert(admin_info(fw, board, mac) == TINC_ERR_NO_REPLY && !fw[0] && !board[0]);
     }
 
     /* WIFI_GET: one slot per request */

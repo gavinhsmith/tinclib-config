@@ -59,7 +59,7 @@ static bool info_str(const uint8_t *p, uint16_t len, uint16_t *at, char *out)
     return true;
 }
 
-tinc_err_t admin_info(char *fw, char *board)
+tinc_err_t admin_info(char *fw, char *board, uint8_t *mac)
 {
     tinc_err_t e = tinc_xfer(TINC_T_INFO, NULL, 0, 0);
     uint16_t at = TINC_INFO_FW_LEN;
@@ -67,12 +67,14 @@ tinc_err_t admin_info(char *fw, char *board)
     fw[0] = board[0] = '\0';
     if (e != TINC_OK)
         return e;
-    /* fw, then board; trailing bytes ignored (append-only) */
+    /* fw, board, then mac; trailing bytes ignored (append-only) */
     if (!info_str(tinc_g.parser.payload, tinc_g.parser.len, &at, fw) ||
-        !info_str(tinc_g.parser.payload, tinc_g.parser.len, &at, board)) {
+        !info_str(tinc_g.parser.payload, tinc_g.parser.len, &at, board) ||
+        at + TINC_MAC_LEN > tinc_g.parser.len) {
         fw[0] = board[0] = '\0';
         return TINC_ERR_BAD_LEN;
     }
+    memcpy(mac, tinc_g.parser.payload + at, TINC_MAC_LEN);
     return TINC_OK;
 }
 

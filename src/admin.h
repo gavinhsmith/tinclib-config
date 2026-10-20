@@ -29,10 +29,11 @@ tinc_err_t admin_status(admin_status_t *st);
  * HELLO is idempotent and always executed. */
 tinc_err_t admin_slot_count(uint8_t *count);
 
-/* INFO: firmware version and board name, display only (e.g. "1.2.0",
- * "Wemos D1 mini"). Each buffer needs TINC_INFO_STR_MAX + 1 bytes; bytes
- * outside printable ASCII come back as '?'. */
-tinc_err_t admin_info(char *fw, char *board);
+/* INFO: firmware version, board name and Wi-Fi MAC, display only (e.g.
+ * "1.2.0", "Wemos D1 mini"). fw and board need TINC_INFO_STR_MAX + 1 bytes;
+ * bytes outside printable ASCII come back as '?'. mac gets TINC_MAC_LEN
+ * bytes in transmission order (0.7). */
+tinc_err_t admin_info(char *fw, char *board, uint8_t *mac);
 
 /* One slot: ssid ("" = empty, needs TINC_SSID_MAX + 1 bytes) and wflags. */
 tinc_err_t admin_get(uint8_t slot, char *ssid, uint8_t *wflags);
